@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Synapse Med | Clinical Intelligence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+              serif: ["Crimson Pro", "serif"],
+              mono: ["JetBrains Mono", "monospace"],
+              display: ["Outfit", "sans-serif"],
+            },
+            colors: {
+              obsidian: "#0f1014",
+              charcoal: "#18181b",
+              glass: "rgba(255, 255, 255, 0.05)",
+              "glass-border": "rgba(255, 255, 255, 0.1)",
+              clinical: {
+                cyan: "#06b6d4",
+                teal: "#14b8a6",
+                rose: "#f43f5e",
+                amber: "#f59e0b",
+                slate: "#64748b",
+                purple: "#8b5cf6",
+              },
+            },
+            animation: {
+              "pulse-slow": "pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+              glow: "glow 2s ease-in-out infinite alternate",
+            },
+            keyframes: {
+              glow: {
+                "0%": { boxShadow: "0 0 5px rgba(6, 182, 212, 0.2)" },
+                "100%": { boxShadow: "0 0 20px rgba(6, 182, 212, 0.6)" },
+              },
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        background-color: #0f1014;
+        color: #e2e8f0;
+        -webkit-font-smoothing: antialiased;
+        transition: all 0.3s ease;
+      }
+
+      /* --- DYSLEXIA MODE OVERRIDES --- */
+      body.dyslexia-mode {
+        background-color: #fdf6e3 !important; /* Cream background for lower contrast strain */
+        color: #1a1a1a !important;
+      }
+      body.dyslexia-mode .bg-obsidian,
+      body.dyslexia-mode .bg-charcoal,
+      body.dyslexia-mode aside {
+        background-color: #eee8d5 !important;
+        color: #1a1a1a !important;
+        border-color: #d6d3c9 !important;
+      }
+      body.dyslexia-mode .text-white {
+        color: #1a1a1a !important;
+      }
+      body.dyslexia-mode .text-gray-400,
+      body.dyslexia-mode .text-gray-300 {
+        color: #4a4a4a !important;
+      }
+      body.dyslexia-mode .markdown-content {
+        font-family: "Verdana", "Arial", sans-serif !important;
+        line-height: 2.2 !important; /* Extra spacing */
+        letter-spacing: 0.05em !important;
+      }
+      body.dyslexia-mode b {
+        font-weight: 900 !important;
+      }
+
+      /* Custom scrollbar */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #0f1014;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #334155;
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #475569;
+      }
+      .glass-panel {
+        background: rgba(24, 24, 27, 0.6);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      /* Markdown Styles - Dark Medical Journal (NEJM-Inspired, Dark Mode) */
+      .markdown-content {
+        font-family: "Crimson Pro", serif;
+        font-size: 1.125rem; /* 18px */
+        line-height: 1.9;
+        color: #d1d5db;
+        font-weight: 400;
+        letter-spacing: 0.3px;
+      }
+
+      /* Headers - Bold Editorial Authority */
+      .markdown-content h1 {
+        font-family: "Inter", sans-serif;
+        font-size: 2.5em;
+        font-weight: 800;
+        color: #ffffff;
+        margin-bottom: 0.6em;
+        margin-top: 1.4em;
+        letter-spacing: -0.03em;
+        border-bottom: 3px solid #1f2937;
+        padding-bottom: 0.4em;
+        text-transform: uppercase;
+        tracking-tight: true;
+      }
+      .markdown-content h2 {
+        font-family: "Inter", sans-serif;
+        font-size: 1.8em;
+        font-weight: 700;
+        color: #e5e7eb;
+        margin-bottom: 0.7em;
+        margin-top: 2em;
+        border-left: 5px solid #06b6d4;
+        padding-left: 1em;
+        letter-spacing: -0.02em;
+      }
+      .markdown-content h3 {
+        font-family: "Inter", sans-serif;
+        font-size: 1.35em;
+        font-weight: 600;
+        color: #f3f4f6;
+        margin-bottom: 0.6em;
+        margin-top: 1.6em;
+        text-transform: uppercase;
+        font-size: 0.9em;
+        letter-spacing: 0.05em;
+        opacity: 0.95;
+      }
+      .markdown-content h4 {
+        font-family: "Inter", sans-serif;
+        font-size: 1.1em;
+        font-weight: 600;
+        color: #d1d5db;
+        margin-bottom: 0.5em;
+        margin-top: 1.2em;
+      }
+
+      /* Body Text Enhancements */
+      .markdown-content p {
+        margin-bottom: 1.4em;
+        color: #d1d5db;
+      }
+      .markdown-content ul {
+        list-style-type: disc;
+        padding-left: 1.8em;
+        margin-bottom: 1.4em;
+        color: #b0b9c3;
+      }
+      .markdown-content ol {
+        list-style-type: decimal;
+        padding-left: 1.8em;
+        margin-bottom: 1.4em;
+        color: #b0b9c3;
+      }
+      .markdown-content li {
+        margin-bottom: 0.6em;
+        padding-left: 0.3em;
+        color: #b0b9c3;
+      }
+
+      /* Emphasis - Clinical Authority */
+      .markdown-content strong {
+        color: #ffffff;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+      }
+      .markdown-content em {
+        color: #cbd5e1;
+        font-style: italic;
+        font-weight: 500;
+      }
+
+      /* Callouts - Clinical Hierarchy */
+      .markdown-content blockquote {
+        border-left: 5px solid #3b82f6;
+        padding: 1.2em 1.8em;
+        color: #cbd5e1;
+        font-style: italic;
+        background: linear-gradient(
+          to right,
+          rgba(59, 130, 246, 0.08),
+          transparent
+        );
+        border-radius: 2px;
+        margin: 2em 0;
+        font-family: "Inter", sans-serif;
+        font-size: 0.95em;
+        font-weight: 500;
+      }
+
+      /* Code - Monospace Medical Values */
+      .markdown-content code {
+        background: rgba(15, 16, 20, 0.8);
+        padding: 0.3em 0.6em;
+        border-radius: 3px;
+        border: 1px solid rgba(75, 85, 99, 0.4);
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.9em;
+        color: #34d399;
+        letter-spacing: 0.2px;
+      }
+
+      /* Smart Links */
+      .smart-link {
+        cursor: pointer;
+        color: #22d3ee;
+        font-weight: 600;
+        text-decoration: none;
+        border-bottom: 2px solid rgba(34, 211, 238, 0.4);
+        transition: all 0.2s ease;
+        padding-bottom: 1px;
+        position: relative;
+        display: inline-block;
+      }
+      .smart-link::before {
+        content: "";
+        position: absolute;
+        inset: -2px -4px;
+        background: rgba(6, 182, 212, 0.08);
+        border-radius: 3px;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        z-index: -1;
+      }
+      .smart-link:hover {
+        color: #06b6d4;
+        border-bottom-color: #06b6d4;
+      }
+      .smart-link:hover::before {
+        opacity: 1;
+      }
+
+      /* Tables - Data Clarity */
+      .markdown-content table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        margin: 2.2em 0;
+        font-size: 0.95em;
+        border: 2px solid #374151;
+        border-radius: 4px;
+        overflow: hidden;
+        font-family: "Inter", sans-serif;
+        background: rgba(15, 23, 42, 0.6);
+      }
+      .markdown-content th {
+        background: linear-gradient(to bottom, #1f2937, #111827);
+        font-weight: 700;
+        text-align: left;
+        padding: 1.2em 1em;
+        border-bottom: 2px solid #374151;
+        color: #ffffff;
+        text-transform: uppercase;
+        font-size: 0.8em;
+        letter-spacing: 0.08em;
+      }
+      .markdown-content td {
+        padding: 1em;
+        border-bottom: 1px solid #2d3748;
+        color: #d1d5db;
+      }
+      .markdown-content tr:last-child td {
+        border-bottom: 2px solid #374151;
+      }
+      .markdown-content tr:hover td {
+        background: rgba(75, 85, 99, 0.15);
+        transition: background 0.2s ease;
+      }
+
+      /* Additional animations for ThinkingModal */
+      @keyframes shimmer {
+        0% {
+          background-position: -200% 0;
+        }
+        100% {
+          background-position: 200% 0;
+        }
+      }
+
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes slideUp {
+        from {
+          opacity: 0;
+          transform: translateY(5px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* Custom scrollbar for dark mode */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 2px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.2);
+      }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+          "react": "https://aistudiocdn.com/react@^19.2.0",
+          "d3": "https://aistudiocdn.com/d3@^7.9.0",
+          "react/": "https://aistudiocdn.com/react@^19.2.0/",
+          "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
+          "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+          "react-markdown": "https://esm.sh/react-markdown@9.0.1",
+          "remark-gfm": "https://aistudiocdn.com/remark-gfm@^4.0.1"
+        }
+      }
+    </script>
+    <link rel="stylesheet" href="/index.css" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

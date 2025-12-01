@@ -1,0 +1,5 @@
+{
+  "name": "Synapse Med",
+  "description": "An AI-Powered Clinical Intelligence Hub that transforms fragmented medical notes into verified Knowledge Graphs, Podcasts, and Deep-Dive Augmentations using Gemini 2.5.",
+  "requestFramePermissions": []
+}
