@@ -38,7 +38,7 @@ Synapse Med is an intelligent medical learning companion that leverages Google's
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/synapse-med.git
+git clone https://github.com/hareeshkar/synapse-med.git
 cd synapse-med
 
 # Install dependencies
@@ -255,8 +255,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📧 Contact
 
-**Developer**: Hareesh Karravi  
-**Project Link**: [https://github.com/yourusername/synapse-med](https://github.com/yourusername/synapse-med)
+**Developer**: hareeshkar  
+**Project Link**: [https://github.com/hareeshkar/synapse-med](https://github.com/hareeshkar/synapse-med)
 
 ---
 
@@ -270,6 +270,6 @@ This tool is designed as a **study aid** and should not replace professional med
 
 **Built with ❤️ for medical learners**
 
-[Report Bug](https://github.com/yourusername/synapse-med/issues) · [Request Feature](https://github.com/yourusername/synapse-med/issues) · [Documentation](https://github.com/yourusername/synapse-med/wiki)
+[Report Bug](https://github.com/hareeshkar/synapse-med/issues) · [Request Feature](https://github.com/hareeshkar/synapse-med/issues) · [Documentation](https://github.com/hareeshkar/synapse-med/wiki)
 
 </div>

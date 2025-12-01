@@ -19,13 +19,13 @@ Thank you for your interest in contributing to Synapse Med! This document provid
 
 2. **Clone your fork**
    ```bash
-   git clone https://github.com/YOUR_USERNAME/synapse-med.git
+   git clone https://github.com/hareeshkar/synapse-med.git
    cd synapse-med
    ```
 
 3. **Add upstream remote**
    ```bash
-   git remote add upstream https://github.com/ORIGINAL_OWNER/synapse-med.git
+   git remote add upstream https://github.com/hareeshkar/synapse-med.git
    ```
 
 4. **Install dependencies**
@@ -203,8 +203,8 @@ When requesting features:
 
 ## ❓ Questions?
 
-- Open a [Discussion](https://github.com/yourusername/synapse-med/discussions)
-- Create an [Issue](https://github.com/yourusername/synapse-med/issues)
+- Open a [Discussion](https://github.com/hareeshkar/synapse-med/discussions)
+- Create an [Issue](https://github.com/hareeshkar/synapse-med/issues)
 - Contact the maintainer
 
 ## 📄 License
