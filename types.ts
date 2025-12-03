@@ -102,13 +102,34 @@ export type TeachingStyle =
   | "Socratic" // Questions that guide discovery
   | "Concise" // Bullet points, rapid facts
   | "Detailed" // Deep explanations, comprehensive
-  | "Clinical-Cases"; // Case-based learning
+  | "Clinical-Cases" // Case-based learning
+  | "Custom"; // User-defined custom style
+
+// Exam goal types for quiz generation personalization
+export type ExamGoal =
+  | "USMLE Step 1"
+  | "USMLE Step 2 CK"
+  | "USMLE Step 3"
+  | "COMLEX"
+  | "NCLEX-RN"
+  | "NCLEX-PN"
+  | "NAPLEX"
+  | "PANCE/PANRE"
+  | "MCAT"
+  | "Board Certification"
+  | "Clinical Competency"
+  | "University Semester Exam"
+  | "General Knowledge"
+  | "Custom";
 
 export interface UserProfile {
   name: string;
-  discipline: ClinicalDiscipline;
-  level: TrainingLevel;
-  teachingStyle: TeachingStyle;
+  discipline?: ClinicalDiscipline; // Made optional
+  level?: TrainingLevel; // Made optional
+  teachingStyle?: TeachingStyle; // Made optional
+  customTeachingStyle?: string; // Free text for custom teaching preferences
+  examGoal?: ExamGoal; // Target exam for personalized quiz generation
+  customExamGoal?: string; // Free text for custom exam description
   profilePicture?: string; // Base64 encoded image
   birthday?: string; // YYYY-MM-DD
   theme?: "obsidian" | "clinical"; // UI preference

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -40,11 +40,14 @@ import {
   Minimize2,
   Settings,
   User,
+  MessageSquare,
+  BrainCircuit,
 } from "lucide-react";
 import KnowledgeGraph from "./components/KnowledgeGraph";
 import PodcastPlayer from "./components/PodcastPlayer";
 import ThinkingModal from "./components/ThinkingModal";
 import NodeInspector from "./components/NodeInspector";
+import ChatInterface from "./components/ChatInterface";
 import { GeminiService } from "./services/geminiService";
 import {
   ProcessingStatus,
@@ -85,6 +88,12 @@ const App: React.FC = () => {
   const [selectedNode, setSelectedNode] = useState<KnowledgeNode | null>(null); // Selected node in knowledge graph
   const [isGeneratingPodcast, setIsGeneratingPodcast] = useState(false); // Loading state for podcast generation
   const [isGeneratingCards, setIsGeneratingCards] = useState(false); // Unused in current implementation
+
+  // ===============================
+  // CHAT INTERFACE STATE (Context-Aware AI Companion)
+  // ===============================
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [selectedText, setSelectedText] = useState<string | null>(null);
 
   // ===============================
   // THINKING MODAL STATE (Real-Time Streaming UI)
@@ -429,6 +438,36 @@ const App: React.FC = () => {
   };
 
   // ===============================
+  // TEXT SELECTION HANDLER (Chat Integration)
+  // ===============================
+  // Captures text selected in the Master Guide and opens chat with context
+  const handleTextSelection = useCallback(() => {
+    const selection = window.getSelection();
+    if (selection && selection.toString().trim().length > 0) {
+      const text = selection.toString().trim();
+      // Only trigger for meaningful selections (5-1500 chars)
+      if (text.length >= 5 && text.length <= 1500) {
+        setSelectedText(text);
+        setIsChatOpen(true);
+      }
+    }
+  }, []);
+
+  // Clear selected text context
+  const handleClearSelection = useCallback(() => {
+    setSelectedText(null);
+  }, []);
+
+  // Toggle chat panel
+  const handleToggleChat = useCallback(() => {
+    setIsChatOpen((prev) => !prev);
+    if (isChatOpen) {
+      // Clear selection when closing
+      setSelectedText(null);
+    }
+  }, [isChatOpen]);
+
+  // ===============================
   // RENDER: Main App UI
   // ===============================
   if (!userProfile) {
@@ -637,7 +676,11 @@ const App: React.FC = () => {
             <UploadCloud size={20} />
           </button>
           <button
-            onClick={() => setActiveNav("library")}
+            onClick={() => {
+              setActiveNav("library");
+              setIsChatOpen(false);
+              setSelectedText(null);
+            }}
             className={`p-3 rounded-lg transition-all flex justify-center ${
               activeNav === "library"
                 ? "text-clinical-cyan bg-clinical-cyan/10"
@@ -889,7 +932,31 @@ const App: React.FC = () => {
                     </div>
 
                     {/* Podcast Controls */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
+                      {/* Chat Toggle Button */}
+                      <button
+                        onClick={handleToggleChat}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[10px] font-bold uppercase tracking-wider transition-all ${
+                          isChatOpen
+                            ? "bg-clinical-cyan/10 border-clinical-cyan text-clinical-cyan shadow-[0_0_15px_rgba(6,182,212,0.2)]"
+                            : "border-white/10 text-gray-400 hover:text-white hover:border-clinical-cyan/50 hover:bg-clinical-cyan/5"
+                        }`}
+                      >
+                        <BrainCircuit size={14} />
+                        <span className="hidden md:block">
+                          {isChatOpen ? "Close AI" : "Ask AI"}
+                        </span>
+                        {!isChatOpen && (
+                          <span className="hidden lg:flex items-center gap-1 text-[8px] text-gray-500 bg-white/5 px-1.5 py-0.5 rounded">
+                            <span className="opacity-60">or</span> highlight
+                            text
+                          </span>
+                        )}
+                      </button>
+
+                      {/* Divider */}
+                      <div className="w-px h-5 bg-white/10" />
+
                       {activeNote.podcastScript &&
                       activeNote.podcastScript.length > 0 ? (
                         <PodcastPlayer
@@ -917,287 +984,334 @@ const App: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Content */}
-                  <div className="flex-1 overflow-y-auto bg-obsidian p-10 scroll-smooth">
-                    <div className="max-w-3xl mx-auto">
-                      {showEli5 && activeNote.eli5Analogy && (
-                        <div className="mb-8 p-6 bg-gradient-to-br from-clinical-purple/10 to-transparent border border-clinical-purple/30 rounded-xl">
-                          <h3 className="text-clinical-purple font-bold mb-2 text-sm uppercase">
-                            Analogy Time
-                          </h3>
-                          <p className="text-gray-200 text-lg font-medium italic">
-                            "{activeNote.eli5Analogy}"
-                          </p>
-                        </div>
-                      )}
+                  {/* Content + Chat Layout */}
+                  <div className="flex-1 flex overflow-hidden relative">
+                    {/* Main Guide Content - Adjusts when chat opens */}
+                    <div
+                      className={`overflow-y-auto bg-obsidian scroll-smooth transition-all duration-300 ease-out ${
+                        isChatOpen ? "pr-[600px]" : "w-full"
+                      }`}
+                      style={{ flex: 1 }}
+                      onMouseUp={handleTextSelection}
+                    >
+                      <div
+                        className={`py-10 transition-all duration-300 ${
+                          isChatOpen
+                            ? "pl-16 pr-10 max-w-5xl"
+                            : "px-8 max-w-4xl mx-auto"
+                        }`}
+                      >
+                        {showEli5 && activeNote.eli5Analogy && (
+                          <div className="mb-8 p-6 bg-gradient-to-br from-clinical-purple/10 to-transparent border border-clinical-purple/30 rounded-xl">
+                            <h3 className="text-clinical-purple font-bold mb-2 text-sm uppercase">
+                              Analogy Time
+                            </h3>
+                            <p className="text-gray-200 text-lg font-medium italic">
+                              "{activeNote.eli5Analogy}"
+                            </p>
+                          </div>
+                        )}
 
-                      <div className="markdown-content">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          urlTransform={(url) => url} // Allow custom protocols like node:
-                          components={{
-                            // Prevent links in headings
-                            h1: ({ node, children, ...props }) => (
-                              <h1 {...props}>{children}</h1>
-                            ),
-                            h2: ({ node, children, ...props }) => (
-                              <h2 {...props}>{children}</h2>
-                            ),
-                            h3: ({ node, children, ...props }) => (
-                              <h3 {...props}>{children}</h3>
-                            ),
-                            h4: ({ node, children, ...props }) => (
-                              <h4 {...props}>{children}</h4>
-                            ),
-                            h5: ({ node, children, ...props }) => (
-                              <h5 {...props}>{children}</h5>
-                            ),
-                            h6: ({ node, children, ...props }) => (
-                              <h6 {...props}>{children}</h6>
-                            ),
-                            a: ({ node, ...props }) => {
-                              const href = props.href || "";
+                        <div className="markdown-content">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            urlTransform={(url) => url} // Allow custom protocols like node:
+                            components={{
+                              // Prevent links in headings
+                              h1: ({ node, children, ...props }) => (
+                                <h1 {...props}>{children}</h1>
+                              ),
+                              h2: ({ node, children, ...props }) => (
+                                <h2 {...props}>{children}</h2>
+                              ),
+                              h3: ({ node, children, ...props }) => (
+                                <h3 {...props}>{children}</h3>
+                              ),
+                              h4: ({ node, children, ...props }) => (
+                                <h4 {...props}>{children}</h4>
+                              ),
+                              h5: ({ node, children, ...props }) => (
+                                <h5 {...props}>{children}</h5>
+                              ),
+                              h6: ({ node, children, ...props }) => (
+                                <h6 {...props}>{children}</h6>
+                              ),
+                              a: ({ node, ...props }) => {
+                                const href = props.href || "";
 
-                              // 🔧 FIXED: Enhanced smart link handler with proper node resolution
-                              if (href.startsWith("node:")) {
-                                const nodeId = href.split(":")[1];
-                                return (
-                                  <span
-                                    className="smart-link"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-
-                                      // Find node by exact ID match
-                                      const targetNode =
-                                        activeNote.graphData.nodes.find(
-                                          (n) => n.id === nodeId
-                                        );
-
-                                      if (targetNode) {
-                                        setSelectedNode(targetNode);
-                                        setActiveTab("graph");
-                                      }
-                                    }}
-                                    role="button"
-                                    tabIndex={0}
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter" || e.key === " ") {
+                                // 🔧 FIXED: Enhanced smart link handler with proper node resolution
+                                if (href.startsWith("node:")) {
+                                  const nodeId = href.split(":")[1];
+                                  return (
+                                    <span
+                                      className="smart-link"
+                                      onClick={(e) => {
                                         e.preventDefault();
+                                        e.stopPropagation();
+
+                                        // Find node by exact ID match
                                         const targetNode =
                                           activeNote.graphData.nodes.find(
                                             (n) => n.id === nodeId
                                           );
+
                                         if (targetNode) {
                                           setSelectedNode(targetNode);
                                           setActiveTab("graph");
                                         }
-                                      }
-                                    }}
+                                      }}
+                                      role="button"
+                                      tabIndex={0}
+                                      onKeyDown={(e) => {
+                                        if (
+                                          e.key === "Enter" ||
+                                          e.key === " "
+                                        ) {
+                                          e.preventDefault();
+                                          const targetNode =
+                                            activeNote.graphData.nodes.find(
+                                              (n) => n.id === nodeId
+                                            );
+                                          if (targetNode) {
+                                            setSelectedNode(targetNode);
+                                            setActiveTab("graph");
+                                          }
+                                        }
+                                      }}
+                                    >
+                                      {props.children}
+                                    </span>
+                                  );
+                                }
+                                if (href.startsWith("http")) {
+                                  return (
+                                    <a
+                                      {...props}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-0.5 text-[0.8em] font-sans font-medium text-gray-500 bg-white/5 px-1.5 py-0.5 rounded border border-white/10 hover:border-clinical-cyan hover:text-clinical-cyan transition-all align-middle mx-1"
+                                    >
+                                      {props.children} <ExternalLink size={8} />
+                                    </a>
+                                  );
+                                }
+                                return (
+                                  <span
+                                    className="text-clinical-cyan/80 border-b border-dotted border-clinical-cyan/50 cursor-help"
+                                    title="Reference"
                                   >
                                     {props.children}
                                   </span>
                                 );
-                              }
-                              if (href.startsWith("http")) {
-                                return (
-                                  <a
-                                    {...props}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-0.5 text-[0.8em] font-sans font-medium text-gray-500 bg-white/5 px-1.5 py-0.5 rounded border border-white/10 hover:border-clinical-cyan hover:text-clinical-cyan transition-all align-middle mx-1"
-                                  >
-                                    {props.children} <ExternalLink size={8} />
-                                  </a>
-                                );
-                              }
-                              return (
-                                <span
-                                  className="text-clinical-cyan/80 border-b border-dotted border-clinical-cyan/50 cursor-help"
-                                  title="Reference"
-                                >
-                                  {props.children}
+                              },
+                            }}
+                          >
+                            {activeNote.markdownContent}
+                          </ReactMarkdown>
+                        </div>
+
+                        {/* Clinical Pearls - Enhanced Design */}
+                        {activeNote.pearls &&
+                          activeNote.pearls.length > 0 &&
+                          activeNote.markdownContent &&
+                          activeNote.markdownContent.length > 100 && (
+                            <div className="mb-8">
+                              {/* Section Header */}
+                              <div className="flex items-center gap-2 mb-4">
+                                <Sparkles className="w-5 h-5 text-clinical-amber" />
+                                <h3 className="text-lg font-bold text-white">
+                                  Clinical Pearls
+                                </h3>
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-clinical-amber/10 text-clinical-amber border border-clinical-amber/20">
+                                  {activeNote.pearls.length} pearls
                                 </span>
-                              );
-                            },
-                          }}
-                        >
-                          {activeNote.markdownContent}
-                        </ReactMarkdown>
-                      </div>
+                              </div>
 
-                      {/* Clinical Pearls - Enhanced Design */}
-                      {activeNote.pearls &&
-                        activeNote.pearls.length > 0 &&
-                        activeNote.markdownContent &&
-                        activeNote.markdownContent.length > 100 && (
-                          <div className="mb-8">
-                            {/* Section Header */}
-                            <div className="flex items-center gap-2 mb-4">
-                              <Sparkles className="w-5 h-5 text-clinical-amber" />
-                              <h3 className="text-lg font-bold text-white">
-                                Clinical Pearls
-                              </h3>
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-clinical-amber/10 text-clinical-amber border border-clinical-amber/20">
-                                {activeNote.pearls.length} pearls
-                              </span>
-                            </div>
+                              {/* Pearl Cards */}
+                              <div className="grid gap-3">
+                                {activeNote.pearls.map((pearl, i) => {
+                                  const pearlConfig = {
+                                    "red-flag": {
+                                      icon: AlertTriangle,
+                                      bg: "bg-gradient-to-r from-red-500/10 to-red-500/5",
+                                      border: "border-red-500/30",
+                                      accent: "bg-red-500",
+                                      text: "text-red-200",
+                                      label: "🚨 RED FLAG",
+                                      labelColor: "text-red-400",
+                                    },
+                                    "exam-tip": {
+                                      icon: GraduationCap,
+                                      bg: "bg-gradient-to-r from-blue-500/10 to-blue-500/5",
+                                      border: "border-blue-500/30",
+                                      accent: "bg-blue-500",
+                                      text: "text-blue-200",
+                                      label: "📝 EXAM TIP",
+                                      labelColor: "text-blue-400",
+                                    },
+                                    "gap-filler": {
+                                      icon: Layers,
+                                      bg: "bg-gradient-to-r from-cyan-500/10 to-cyan-500/5",
+                                      border: "border-cyan-500/30",
+                                      accent: "bg-cyan-500",
+                                      text: "text-cyan-200",
+                                      label: "💡 GAP FILLER",
+                                      labelColor: "text-cyan-400",
+                                    },
+                                    "fact-check": {
+                                      icon: CheckCircle2,
+                                      bg: "bg-gradient-to-r from-amber-500/10 to-amber-500/5",
+                                      border: "border-amber-500/30",
+                                      accent: "bg-amber-500",
+                                      text: "text-amber-200",
+                                      label: "✅ FACT CHECK",
+                                      labelColor: "text-amber-400",
+                                    },
+                                  };
+                                  const config =
+                                    pearlConfig[
+                                      pearl.type as keyof typeof pearlConfig
+                                    ] || pearlConfig["fact-check"];
+                                  const IconComponent = config.icon;
 
-                            {/* Pearl Cards */}
-                            <div className="grid gap-3">
-                              {activeNote.pearls.map((pearl, i) => {
-                                const pearlConfig = {
-                                  "red-flag": {
-                                    icon: AlertTriangle,
-                                    bg: "bg-gradient-to-r from-red-500/10 to-red-500/5",
-                                    border: "border-red-500/30",
-                                    accent: "bg-red-500",
-                                    text: "text-red-200",
-                                    label: "🚨 RED FLAG",
-                                    labelColor: "text-red-400",
-                                  },
-                                  "exam-tip": {
-                                    icon: GraduationCap,
-                                    bg: "bg-gradient-to-r from-blue-500/10 to-blue-500/5",
-                                    border: "border-blue-500/30",
-                                    accent: "bg-blue-500",
-                                    text: "text-blue-200",
-                                    label: "📝 EXAM TIP",
-                                    labelColor: "text-blue-400",
-                                  },
-                                  "gap-filler": {
-                                    icon: Layers,
-                                    bg: "bg-gradient-to-r from-cyan-500/10 to-cyan-500/5",
-                                    border: "border-cyan-500/30",
-                                    accent: "bg-cyan-500",
-                                    text: "text-cyan-200",
-                                    label: "💡 GAP FILLER",
-                                    labelColor: "text-cyan-400",
-                                  },
-                                  "fact-check": {
-                                    icon: CheckCircle2,
-                                    bg: "bg-gradient-to-r from-amber-500/10 to-amber-500/5",
-                                    border: "border-amber-500/30",
-                                    accent: "bg-amber-500",
-                                    text: "text-amber-200",
-                                    label: "✅ FACT CHECK",
-                                    labelColor: "text-amber-400",
-                                  },
-                                };
-                                const config =
-                                  pearlConfig[
-                                    pearl.type as keyof typeof pearlConfig
-                                  ] || pearlConfig["fact-check"];
-                                const IconComponent = config.icon;
-
-                                return (
-                                  <div
-                                    key={i}
-                                    className={`relative overflow-hidden rounded-xl border ${config.border} ${config.bg} p-4 hover:scale-[1.01] transition-all duration-200`}
-                                  >
-                                    {/* Accent bar */}
+                                  return (
                                     <div
-                                      className={`absolute left-0 top-0 bottom-0 w-1 ${config.accent}`}
-                                    />
-
-                                    {/* Content */}
-                                    <div className="flex gap-3 pl-2">
+                                      key={i}
+                                      className={`relative overflow-hidden rounded-xl border ${config.border} ${config.bg} p-4 hover:scale-[1.01] transition-all duration-200`}
+                                    >
+                                      {/* Accent bar */}
                                       <div
-                                        className={`shrink-0 w-8 h-8 rounded-lg ${config.bg} flex items-center justify-center`}
-                                      >
-                                        <IconComponent
-                                          className={`w-4 h-4 ${config.labelColor}`}
-                                        />
-                                      </div>
-                                      <div className="flex-1">
+                                        className={`absolute left-0 top-0 bottom-0 w-1 ${config.accent}`}
+                                      />
+
+                                      {/* Content */}
+                                      <div className="flex gap-3 pl-2">
                                         <div
-                                          className={`text-[10px] font-bold tracking-widest mb-1 ${config.labelColor}`}
+                                          className={`shrink-0 w-8 h-8 rounded-lg ${config.bg} flex items-center justify-center`}
                                         >
-                                          {config.label}
+                                          <IconComponent
+                                            className={`w-4 h-4 ${config.labelColor}`}
+                                          />
                                         </div>
-                                        <div
-                                          className={`text-sm leading-relaxed ${config.text}`}
-                                        >
-                                          {pearl.content}
+                                        <div className="flex-1">
+                                          <div
+                                            className={`text-[10px] font-bold tracking-widest mb-1 ${config.labelColor}`}
+                                          >
+                                            {config.label}
+                                          </div>
+                                          <div
+                                            className={`text-sm leading-relaxed ${config.text}`}
+                                          >
+                                            {pearl.content}
+                                          </div>
                                         </div>
                                       </div>
                                     </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
+                                  );
+                                })}
+                              </div>
 
-                            {/* Motivational Message */}
-                            {userProfile && (
-                              <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-clinical-purple/10 to-clinical-cyan/10 border border-clinical-purple/20">
-                                <div className="flex items-start gap-3">
-                                  <div className="shrink-0 w-10 h-10 rounded-full bg-clinical-purple/20 flex items-center justify-center">
-                                    {userProfile.profilePicture ? (
-                                      <img
-                                        src={userProfile.profilePicture}
-                                        alt=""
-                                        className="w-10 h-10 rounded-full object-cover"
-                                      />
-                                    ) : (
-                                      <Sparkles className="w-5 h-5 text-clinical-purple" />
-                                    )}
-                                  </div>
-                                  <div>
-                                    <p className="text-sm text-gray-300 leading-relaxed">
-                                      {isBirthday()
-                                        ? `🎂 Happy Birthday, ${
-                                            userProfile.name
-                                          }! What a gift to yourself—mastering ${
-                                            activeNote?.title || "this topic"
-                                          }. May this year bring you clinical excellence and countless "aha!" moments. Keep shining! 🌟`
-                                        : `Keep pushing, ${
-                                            userProfile.name
-                                          }! Every pearl you absorb today brings you closer to clinical mastery. ${
-                                            userProfile.level?.includes(
-                                              "Student"
-                                            )
-                                              ? "Your dedication as a student will pay off—future patients are counting on brilliant clinicians like you."
-                                              : "Your commitment to learning sets you apart as a true professional."
-                                          } 💪`}
-                                    </p>
-                                    <p className="text-xs text-clinical-cyan/60 mt-1">
-                                      — Your Synapse Med AI Mentor
-                                    </p>
+                              {/* Motivational Message */}
+                              {userProfile && (
+                                <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-clinical-purple/10 to-clinical-cyan/10 border border-clinical-purple/20">
+                                  <div className="flex items-start gap-3">
+                                    <div className="shrink-0 w-10 h-10 rounded-full bg-clinical-purple/20 flex items-center justify-center">
+                                      {userProfile.profilePicture ? (
+                                        <img
+                                          src={userProfile.profilePicture}
+                                          alt=""
+                                          className="w-10 h-10 rounded-full object-cover"
+                                        />
+                                      ) : (
+                                        <Sparkles className="w-5 h-5 text-clinical-purple" />
+                                      )}
+                                    </div>
+                                    <div>
+                                      <p className="text-sm text-gray-300 leading-relaxed">
+                                        {isBirthday()
+                                          ? `🎂 Happy Birthday, ${
+                                              userProfile.name
+                                            }! What a gift to yourself—mastering ${
+                                              activeNote?.title || "this topic"
+                                            }. May this year bring you clinical excellence and countless "aha!" moments. Keep shining! 🌟`
+                                          : `Keep pushing, ${
+                                              userProfile.name
+                                            }! Every pearl you absorb today brings you closer to clinical mastery. ${
+                                              userProfile.level?.includes(
+                                                "Student"
+                                              )
+                                                ? "Your dedication as a student will pay off—future patients are counting on brilliant clinicians like you."
+                                                : "Your commitment to learning sets you apart as a true professional."
+                                            } 💪`}
+                                      </p>
+                                      <p className="text-xs text-clinical-cyan/60 mt-1">
+                                        — Your Synapse Med AI Mentor
+                                      </p>
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
+                              )}
+                            </div>
+                          )}
 
-                      {activeNote.sources && activeNote.sources.length > 0 && (
-                        <div className="mt-16 pt-8 border-t border-glass-border">
-                          <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase mb-4">
-                            <CheckCircle2
-                              size={14}
-                              className="text-clinical-teal"
-                            />{" "}
-                            Verified Sources
-                          </h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            {activeNote.sources.map((source, idx) => (
-                              <a
-                                key={idx}
-                                href={source.uri}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex flex-col p-3 bg-white/5 border border-white/5 rounded-lg hover:bg-white/10 transition-all group"
-                              >
-                                <span className="text-xs font-medium text-gray-200 truncate group-hover:text-clinical-cyan">
-                                  {source.title}
-                                </span>
-                                <span className="text-[10px] text-gray-500 truncate">
-                                  {new URL(source.uri).hostname}
-                                </span>
-                              </a>
-                            ))}
-                          </div>
-                        </div>
+                        {activeNote.sources &&
+                          activeNote.sources.length > 0 && (
+                            <div className="mt-16 pt-8 border-t border-glass-border">
+                              <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase mb-4">
+                                <CheckCircle2
+                                  size={14}
+                                  className="text-clinical-teal"
+                                />{" "}
+                                Verified Sources
+                              </h3>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {activeNote.sources.map((source, idx) => (
+                                  <a
+                                    key={idx}
+                                    href={source.uri}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex flex-col p-3 bg-white/5 border border-white/5 rounded-lg hover:bg-white/10 transition-all group"
+                                  >
+                                    <span className="text-xs font-medium text-gray-200 truncate group-hover:text-clinical-cyan">
+                                      {source.title}
+                                    </span>
+                                    <span className="text-[10px] text-gray-500 truncate">
+                                      {new URL(source.uri).hostname}
+                                    </span>
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                      </div>
+                    </div>
+
+                    {/* ═══════════════════════════════════════════════════════════════
+                        SLIDING CHAT SIDEBAR - FIXED POSITION
+                        ═══════════════════════════════════════════════════════════════ */}
+                    <div
+                      className={`fixed top-[104px] right-0 bottom-0 bg-[#08090a] border-l border-white/[0.06] shadow-[-40px_0_100px_rgba(0,0,0,0.8)] transition-all duration-300 ease-out z-40 ${
+                        isChatOpen
+                          ? "translate-x-0 opacity-100"
+                          : "translate-x-full opacity-0 pointer-events-none"
+                      }`}
+                      style={{ width: "580px" }}
+                    >
+                      {isChatOpen && userProfile && activeNote && (
+                        <ChatInterface
+                          contextMarkdown={activeNote.markdownContent}
+                          userProfile={userProfile}
+                          graphNodes={activeNote.graphData.nodes}
+                          noteTitle={activeNote.title}
+                          noteId={activeNote.id}
+                          initialSelection={selectedText}
+                          onClose={() => {
+                            setIsChatOpen(false);
+                            setSelectedText(null);
+                          }}
+                          onClearSelection={handleClearSelection}
+                        />
                       )}
                     </div>
                   </div>

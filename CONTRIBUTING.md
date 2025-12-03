@@ -5,6 +5,7 @@ Thank you for your interest in contributing to Synapse Med! This document provid
 ## 🚀 Getting Started
 
 ### Prerequisites
+
 - Node.js 18+ and npm
 - Git
 - A Google Gemini API key for testing
@@ -13,27 +14,32 @@ Thank you for your interest in contributing to Synapse Med! This document provid
 ### Development Setup
 
 1. **Fork the repository**
+
    ```bash
    # Click the "Fork" button on GitHub
    ```
 
 2. **Clone your fork**
+
    ```bash
    git clone https://github.com/hareeshkar/synapse-med.git
    cd synapse-med
    ```
 
 3. **Add upstream remote**
+
    ```bash
    git remote add upstream https://github.com/hareeshkar/synapse-med.git
    ```
 
 4. **Install dependencies**
+
    ```bash
    npm install
    ```
 
 5. **Set up environment**
+
    ```bash
    cp .env.example .env.local
    # Add your GEMINI_API_KEY to .env.local
@@ -57,29 +63,34 @@ Thank you for your interest in contributing to Synapse Med! This document provid
 ### Workflow
 
 1. **Create a new branch**
+
    ```bash
    git checkout -b feature/your-feature-name
    ```
 
 2. **Make your changes**
+
    - Write clean, readable code
    - Follow the existing code style
    - Add comments for complex logic
    - Update types in `types.ts` if needed
 
 3. **Test your changes**
+
    ```bash
    npm run build
    # Manual testing in the browser
    ```
 
 4. **Commit your changes**
+
    ```bash
    git add .
    git commit -m "feat: add amazing feature"
    ```
 
    **Commit Message Format:**
+
    - `feat:` - New feature
    - `fix:` - Bug fix
    - `docs:` - Documentation changes
@@ -89,6 +100,7 @@ Thank you for your interest in contributing to Synapse Med! This document provid
    - `chore:` - Maintenance tasks
 
 5. **Push to your fork**
+
    ```bash
    git push origin feature/your-feature-name
    ```
@@ -102,24 +114,28 @@ Thank you for your interest in contributing to Synapse Med! This document provid
 ## 📝 Code Style Guidelines
 
 ### TypeScript
+
 - Use TypeScript strict mode
 - Define proper types (avoid `any`)
 - Use interfaces for object shapes
 - Export types from `types.ts`
 
 ### React
+
 - Use functional components with hooks
 - Keep components focused and single-purpose
 - Extract reusable logic into custom hooks
 - Use meaningful component and variable names
 
 ### CSS
+
 - Use the existing color variables
 - Follow the clinical theme (charcoal, obsidian, etc.)
 - Ensure responsive design
 - Test dark mode appearance
 
 ### Comments
+
 ```typescript
 // ✅ GOOD: Explain WHY, not WHAT
 // Retry with exponential backoff to handle Gemini rate limits
@@ -168,6 +184,7 @@ When requesting features:
 ## 🎯 Priority Areas for Contribution
 
 ### High Priority
+
 - [ ] Unit and integration tests
 - [ ] Export to PDF/Anki functionality
 - [ ] Mobile responsiveness improvements
@@ -175,6 +192,7 @@ When requesting features:
 - [ ] Performance optimization (large file handling)
 
 ### Medium Priority
+
 - [ ] Internationalization (i18n)
 - [ ] Additional knowledge graph layouts
 - [ ] Advanced search and filtering
@@ -182,6 +200,7 @@ When requesting features:
 - [ ] Offline mode with service workers
 
 ### Low Priority
+
 - [ ] UI themes and customization
 - [ ] Additional podcast voices
 - [ ] Social sharing features

@@ -4,6 +4,7 @@ import {
   ClinicalDiscipline,
   TrainingLevel,
   TeachingStyle,
+  ExamGoal,
 } from "../types";
 import {
   Stethoscope,
@@ -21,6 +22,8 @@ import {
   BookOpen,
   Lightbulb,
   X,
+  Target,
+  GraduationCap,
 } from "lucide-react";
 
 interface Props {
@@ -79,6 +82,125 @@ const TEACHING_STYLES: {
     description: "Learn through patient scenarios",
     color: "rose",
   },
+  {
+    label: "Custom",
+    icon: Target,
+    description: "Describe your preferred style",
+    color: "purple",
+  },
+];
+
+// Exam goals for personalized quiz generation
+const EXAM_GOALS: {
+  label: ExamGoal;
+  description: string;
+  disciplines: ClinicalDiscipline[];
+}[] = [
+  {
+    label: "USMLE Step 1",
+    description: "Basic sciences",
+    disciplines: ["Medical (MD/DO)"],
+  },
+  {
+    label: "USMLE Step 2 CK",
+    description: "Clinical knowledge",
+    disciplines: ["Medical (MD/DO)"],
+  },
+  {
+    label: "USMLE Step 3",
+    description: "Clinical practice",
+    disciplines: ["Medical (MD/DO)"],
+  },
+  {
+    label: "COMLEX",
+    description: "Osteopathic boards",
+    disciplines: ["Medical (MD/DO)"],
+  },
+  {
+    label: "NCLEX-RN",
+    description: "Registered nurse",
+    disciplines: ["Nursing"],
+  },
+  {
+    label: "NCLEX-PN",
+    description: "Practical nurse",
+    disciplines: ["Nursing"],
+  },
+  {
+    label: "NAPLEX",
+    description: "Pharmacy licensure",
+    disciplines: ["Pharmacy"],
+  },
+  {
+    label: "PANCE/PANRE",
+    description: "PA certification",
+    disciplines: ["Medical (MD/DO)", "Other"],
+  },
+  {
+    label: "MCAT",
+    description: "Medical school admission",
+    disciplines: ["Medical (MD/DO)", "Other"],
+  },
+  {
+    label: "University Semester Exam",
+    description: "College/University exams",
+    disciplines: [
+      "Medical (MD/DO)",
+      "Nursing",
+      "Pharmacy",
+      "Physiotherapy",
+      "Dentistry",
+      "Other",
+    ],
+  },
+  {
+    label: "Board Certification",
+    description: "Specialty boards",
+    disciplines: [
+      "Medical (MD/DO)",
+      "Nursing",
+      "Pharmacy",
+      "Physiotherapy",
+      "Dentistry",
+      "Other",
+    ],
+  },
+  {
+    label: "Clinical Competency",
+    description: "Skills assessment",
+    disciplines: [
+      "Medical (MD/DO)",
+      "Nursing",
+      "Pharmacy",
+      "Physiotherapy",
+      "Dentistry",
+      "Other",
+    ],
+  },
+  {
+    label: "General Knowledge",
+    description: "No specific exam",
+    disciplines: [
+      "Medical (MD/DO)",
+      "Nursing",
+      "Pharmacy",
+      "Physiotherapy",
+      "Dentistry",
+      "Other",
+    ],
+  },
+  {
+    label: "Custom",
+    description: "Specify your own goal",
+    disciplines: [
+      "Medical (MD/DO)",
+      "Nursing",
+      "Pharmacy",
+      "Physiotherapy",
+      "Dentistry",
+      "Other",
+    ],
+  },
 ];
 
 const Onboarding: React.FC<Props> = ({
@@ -95,6 +217,9 @@ const Onboarding: React.FC<Props> = ({
     discipline: existingProfile?.discipline || "Medical (MD/DO)",
     level: existingProfile?.level || "Student (Clinical)",
     teachingStyle: existingProfile?.teachingStyle || "Detailed",
+    examGoal: existingProfile?.examGoal || undefined,
+    customTeachingStyle: existingProfile?.customTeachingStyle || "",
+    customExamGoal: existingProfile?.customExamGoal || "",
     theme: existingProfile?.theme || "obsidian",
     name: existingProfile?.name || "",
     birthday: existingProfile?.birthday || "",
@@ -109,12 +234,8 @@ const Onboarding: React.FC<Props> = ({
   const handleBack = () => setStep((p) => Math.max(p - 1, 1));
 
   const handleSubmit = () => {
-    if (
-      profile.name &&
-      profile.discipline &&
-      profile.level &&
-      profile.teachingStyle
-    ) {
+    // Only name is required - other fields are optional
+    if (profile.name) {
       const now = Date.now();
       onComplete({
         ...profile,
@@ -343,6 +464,27 @@ const Onboarding: React.FC<Props> = ({
                 ))}
               </div>
 
+              {/* Custom Teaching Style Input */}
+              {profile.teachingStyle === "Custom" && (
+                <div className="animate-[fadeIn_0.3s_ease-out]">
+                  <label className="text-[10px] uppercase text-gray-500 font-semibold tracking-wider mb-2 block">
+                    Describe Your Preferred Style
+                  </label>
+                  <textarea
+                    placeholder="e.g., Focus on visual diagrams, use mnemonics, explain like I'm teaching a friend..."
+                    value={profile.customTeachingStyle || ""}
+                    onChange={(e) =>
+                      setProfile({
+                        ...profile,
+                        customTeachingStyle: e.target.value,
+                      })
+                    }
+                    rows={2}
+                    className="w-full bg-white/5 border border-clinical-cyan/30 rounded-xl py-3 px-4 text-sm text-white focus:border-clinical-cyan/50 focus:outline-none transition-colors resize-none"
+                  />
+                </div>
+              )}
+
               <div className="flex gap-2">
                 <button
                   onClick={handleBack}
@@ -360,7 +502,7 @@ const Onboarding: React.FC<Props> = ({
             </div>
           )}
 
-          {/* STEP 3: SPECIALTIES & GOALS */}
+          {/* STEP 3: EXAM GOAL, SPECIALTIES & GOALS */}
           {step === 3 && (
             <div className="space-y-6 animate-[fadeIn_0.4s_ease-out]">
               <div>
@@ -371,8 +513,72 @@ const Onboarding: React.FC<Props> = ({
                   Focus Areas
                 </h2>
                 <p className="text-gray-500 text-sm mt-1">
-                  Optional: Personalize your content.
+                  Personalize your learning experience.
                 </p>
+              </div>
+
+              {/* Exam Goal Selection */}
+              <div>
+                <label className="text-[10px] uppercase text-gray-500 font-semibold tracking-wider mb-3 block flex items-center gap-2">
+                  <Target size={12} className="text-clinical-amber" />
+                  Target Exam / Goal
+                </label>
+                <div className="grid grid-cols-2 gap-2 max-h-[180px] overflow-y-auto pr-1 custom-scrollbar">
+                  {EXAM_GOALS.filter(
+                    (eg) =>
+                      eg.disciplines.includes(
+                        profile.discipline || "Medical (MD/DO)"
+                      ) || eg.label === "General Knowledge"
+                  ).map((eg) => (
+                    <button
+                      key={eg.label}
+                      onClick={() =>
+                        setProfile({ ...profile, examGoal: eg.label })
+                      }
+                      className={`p-2.5 rounded-xl border text-left transition-all duration-300 ${
+                        profile.examGoal === eg.label
+                          ? "bg-clinical-amber/10 border-clinical-amber/50"
+                          : "bg-white/3 border-white/5 hover:bg-white/5"
+                      }`}
+                    >
+                      <div
+                        className={`text-xs font-medium ${
+                          profile.examGoal === eg.label
+                            ? "text-clinical-amber"
+                            : "text-gray-300"
+                        }`}
+                      >
+                        {eg.label}
+                      </div>
+                      <div className="text-[9px] text-gray-500 mt-0.5">
+                        {eg.description}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                {!profile.examGoal && (
+                  <p className="text-[10px] text-gray-600 mt-2 italic">
+                    Select an exam goal for personalized quiz questions
+                  </p>
+                )}
+
+                {/* Custom Exam Goal Input */}
+                {profile.examGoal === "Custom" && (
+                  <div className="mt-3 animate-[fadeIn_0.3s_ease-out]">
+                    <input
+                      type="text"
+                      placeholder="e.g., MBBS Finals, Nursing State Board, Pharmacy License Exam..."
+                      value={profile.customExamGoal || ""}
+                      onChange={(e) =>
+                        setProfile({
+                          ...profile,
+                          customExamGoal: e.target.value,
+                        })
+                      }
+                      className="w-full bg-white/5 border border-clinical-amber/30 rounded-xl py-2.5 px-4 text-sm text-white focus:border-clinical-amber/50 focus:outline-none transition-colors"
+                    />
+                  </div>
+                )}
               </div>
 
               <div>

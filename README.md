@@ -63,12 +63,14 @@ The app will be available at `http://localhost:3000`
 ### Two-Phase AI Processing
 
 #### Phase 1: Knowledge Graph Construction
+
 - Extracts metadata from uploaded materials
 - Builds comprehensive knowledge graph (25-50 nodes)
 - Generates clinical pearls and ELI5 analogies
 - Performs Google Search verification for gap-filling
 
 #### Phase 2: Content Generation
+
 - Streams 4,000-8,000 word markdown study guides
 - Integrates 25-35 authoritative citations
 - Auto-links clinical terms to knowledge graph nodes
@@ -76,26 +78,29 @@ The app will be available at `http://localhost:3000`
 
 ### Tech Stack
 
-| Category | Technology |
-|----------|-----------|
-| **Frontend** | React 19, TypeScript 5.8, Vite 6.2 |
-| **Visualization** | D3.js (Force-directed graphs) |
-| **AI/ML** | Google Gemini 2.5 (Flash & Pro), Google Search Grounding |
-| **UI Components** | Lucide Icons, React Markdown |
-| **Storage** | Browser LocalStorage |
-| **Styling** | CSS Modules with custom clinical theme |
+| Category          | Technology                                               |
+| ----------------- | -------------------------------------------------------- |
+| **Frontend**      | React 19, TypeScript 5.8, Vite 6.2                       |
+| **Visualization** | D3.js (Force-directed graphs)                            |
+| **AI/ML**         | Google Gemini 2.5 (Flash & Pro), Google Search Grounding |
+| **UI Components** | Lucide Icons, React Markdown                             |
+| **Storage**       | Browser LocalStorage                                     |
+| **Styling**       | CSS Modules with custom clinical theme                   |
 
 ---
 
 ## 📖 Usage Guide
 
 ### 1️⃣ Upload Materials
+
 - Drag and drop lecture PDFs, images, or audio files
 - Enter a topic name (e.g., "Acute Coronary Syndrome")
 - Click **"Generate Smart Guide"**
 
 ### 2️⃣ Real-Time Processing
+
 Watch the AI work through:
+
 - 🔍 **Extracting** - Analyzing uploaded content
 - ✅ **Verifying** - Google Search validation
 - 🕸️ **Graphing** - Building knowledge network
@@ -103,12 +108,14 @@ Watch the AI work through:
 - 📎 **Citing** - Adding authoritative sources
 
 ### 3️⃣ Interactive Study
+
 - **Guide Tab** - Read the comprehensive study guide with clickable citations
 - **Graph Tab** - Explore the 3D knowledge graph (click nodes for details)
 - **ELI5 Mode** - Toggle simple analogies
 - **Podcast** - Generate and listen to AI-hosted discussions
 
 ### 4️⃣ Library Management
+
 - Access all generated notes from the Library tab
 - Search, filter, and organize study materials
 - Delete outdated notes
@@ -120,6 +127,7 @@ Watch the AI work through:
 The interactive knowledge graph visualizes clinical relationships with:
 
 - **7 Node Categories**
+
   - Core Concepts (blue)
   - Pathology (red)
   - Medications (green)
@@ -129,6 +137,7 @@ The interactive knowledge graph visualizes clinical relationships with:
   - Clinical Signs (orange)
 
 - **Interactive Controls**
+
   - Zoom in/out
   - Filter by category
   - Search nodes
