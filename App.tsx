@@ -1,4 +1,11 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
+import ReactDOM from "react-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -48,6 +55,7 @@ import PodcastPlayer from "./components/PodcastPlayer";
 import ThinkingModal from "./components/ThinkingModal";
 import NodeInspector from "./components/NodeInspector";
 import ChatInterface from "./components/ChatInterface";
+import BioBackground from "./components/BioBackground";
 import { GeminiService } from "./services/geminiService";
 import {
   ProcessingStatus,
@@ -58,6 +66,12 @@ import {
 } from "./types";
 import Onboarding from "./components/Onboarding";
 import { ProfileEditor } from "./components/ProfileEditor";
+import {
+  GreetingState,
+  createInitialGreeting,
+  computeGreeting,
+  SUFFIX_ANIMATION_CLASS,
+} from "./utils/greetingService";
 
 // Initialize Gemini service for API interactions
 const gemini = new GeminiService();
@@ -119,13 +133,17 @@ const App: React.FC = () => {
   // ===============================
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [showProfileEditor, setShowProfileEditor] = useState(false);
+  const [isProfileLoaded, setIsProfileLoaded] = useState(false); // Prevent onboarding flash on refresh
 
+  // Load saved profile on mount
   useEffect(() => {
     try {
       const saved = localStorage.getItem("synapseUserProfile");
       if (saved) setUserProfile(JSON.parse(saved));
     } catch (e) {
       console.warn("Failed to load user profile:", e);
+    } finally {
+      setIsProfileLoaded(true); // Mark that we've checked localStorage
     }
   }, []);
 
@@ -146,13 +164,13 @@ const App: React.FC = () => {
     }
   }, [userProfile]);
 
-  const handleProfileSave = (updatedProfile: UserProfile) => {
+  const handleProfileSave = useCallback((updatedProfile: UserProfile) => {
     setUserProfile(updatedProfile);
     setShowProfileEditor(false);
     console.log("✅ [Profile] Updated:", updatedProfile);
-  };
+  }, []);
 
-  const isBirthday = () => {
+  const isBirthday = useMemo(() => {
     if (!userProfile?.birthday) return false;
     const today = new Date();
     const birth = new Date(userProfile.birthday);
@@ -160,15 +178,35 @@ const App: React.FC = () => {
       today.getMonth() === birth.getMonth() &&
       today.getDate() === birth.getDate()
     );
-  };
+  }, [userProfile?.birthday]);
+
+  // Live, personalized greeting using the greeting service
+  // Discipline-based suffixes rotate every 20s for emotional engagement
+  const [greeting, setGreeting] = useState<GreetingState>(() =>
+    createInitialGreeting(userProfile?.discipline)
+  );
+
+  // Update greeting every 20s to rotate suffixes; also re-compute when discipline changes
+  useEffect(() => {
+    // Immediate update when discipline changes
+    setGreeting(computeGreeting(userProfile?.discipline));
+    const id = setInterval(
+      () => setGreeting(computeGreeting(userProfile?.discipline)),
+      20_000
+    );
+    return () => clearInterval(id);
+  }, [userProfile?.discipline]);
 
   const fileInputRef = useRef<HTMLInputElement>(null); // Ref for hidden file input
 
   // ===============================
-  // COMPUTED PROPERTIES
+  // COMPUTED PROPERTIES (memoized)
   // ===============================
   // Find the active note object from the library
-  const activeNote = library.find((n) => n.id === activeNoteId);
+  const activeNote = useMemo(
+    () => library.find((n) => n.id === activeNoteId),
+    [library, activeNoteId]
+  );
 
   // ===============================
   // PERSISTENCE: Load/Save Library to localStorage
@@ -196,32 +234,35 @@ const App: React.FC = () => {
   }, [library]);
 
   // ===============================
-  // FILE HANDLING LOGIC
+  // FILE HANDLING LOGIC (memoized to prevent re-renders)
   // ===============================
   // Handle file selection from input or drag-drop
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files) {
-      const newFiles: File[] = Array.from(event.target.files);
-      newFiles.forEach((file) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const base64 = e.target?.result as string;
-          // Add file to staging queue with base64 encoding for API
-          setStagingFiles((prev) => [
-            ...prev,
-            { file, base64, type: file.type },
-          ]);
-        };
-        reader.readAsDataURL(file); // Convert to base64 for multimodal API
-      });
-    }
-    if (fileInputRef.current) fileInputRef.current.value = ""; // Reset input for re-selection
-  };
+  const handleFileSelect = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      if (event.target.files) {
+        const newFiles: File[] = Array.from(event.target.files);
+        newFiles.forEach((file) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const base64 = e.target?.result as string;
+            // Add file to staging queue with base64 encoding for API
+            setStagingFiles((prev) => [
+              ...prev,
+              { file, base64, type: file.type },
+            ]);
+          };
+          reader.readAsDataURL(file); // Convert to base64 for multimodal API
+        });
+      }
+      if (fileInputRef.current) fileInputRef.current.value = ""; // Reset input for re-selection
+    },
+    []
+  );
 
   // Remove a staged file from the queue
-  const removeStagedFile = (index: number) => {
+  const removeStagedFile = useCallback((index: number) => {
     setStagingFiles((prev) => prev.filter((_, i) => i !== index));
-  };
+  }, []);
 
   // ===============================
   // PROCESSING LOGIC: Streaming Note Generation
@@ -470,6 +511,11 @@ const App: React.FC = () => {
   // ===============================
   // RENDER: Main App UI
   // ===============================
+  // Don't render anything until profile is loaded from localStorage (prevents flash)
+  if (!isProfileLoaded) {
+    return null;
+  }
+
   if (!userProfile) {
     return (
       <Onboarding
@@ -485,384 +531,169 @@ const App: React.FC = () => {
     );
   }
   return (
-    <div className="min-h-screen bg-obsidian text-gray-200 font-sans flex overflow-hidden transition-colors duration-300">
-      {/* 🔧 SIMPLIFIED: Removed isTransitioning prop */}
-      <ThinkingModal
-        isThinking={isThinking}
-        stage={thinkingStage}
-        currentThought={currentThought}
-        markdownProgress={markdownProgress}
-      />
+    <>
+      {/* Render background to dedicated container that sits before #root in DOM */}
+      {ReactDOM.createPortal(
+        <BioBackground />,
+        document.getElementById("bio-background-root") || document.body
+      )}
+      <div className="min-h-screen bg-transparent text-serum-white font-sans flex overflow-hidden transition-colors duration-500 relative">
+        {/* Content layers */}
 
-      {/* Profile Editor Modal */}
-      {showProfileEditor && userProfile && (
-        <ProfileEditor
-          profile={userProfile}
-          onSave={handleProfileSave}
-          onClose={() => setShowProfileEditor(false)}
+        {/* 🔧 SIMPLIFIED: Removed isTransitioning prop */}
+        <ThinkingModal
+          isThinking={isThinking}
+          stage={thinkingStage}
+          currentThought={currentThought}
+          markdownProgress={markdownProgress}
         />
-      )}
 
-      {/* Retry Modal for Empty Content Error */}
-      {showRetryModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/70 backdrop-blur-md animate-fadeIn">
-          <div className="bg-gradient-to-b from-charcoal to-obsidian border border-glass-border rounded-3xl shadow-2xl p-8 max-w-lg w-full transform animate-scaleIn">
-            {/* Decorative top accent */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-1 bg-gradient-to-r from-transparent via-clinical-cyan/50 to-transparent rounded-full" />
+        {/* Profile Editor Modal */}
+        {showProfileEditor && userProfile && (
+          <ProfileEditor
+            profile={userProfile}
+            onSave={handleProfileSave}
+            onClose={() => setShowProfileEditor(false)}
+          />
+        )}
 
-            {/* Icon with pulse animation */}
-            <div className="flex justify-center mb-6 relative">
-              <div className="absolute inset-0 w-20 h-20 mx-auto rounded-full bg-clinical-cyan/10 animate-ping" />
-              <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-clinical-cyan/20 to-clinical-teal/10 border border-clinical-cyan/30 flex items-center justify-center">
-                <Activity className="w-10 h-10 text-clinical-cyan animate-pulse" />
-              </div>
-            </div>
+        {/* Retry Modal for Empty Content Error */}
+        {showRetryModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/80 backdrop-blur-xl animate-fadeIn">
+            <div className="relative bg-gradient-to-b from-bio-deep to-bio-void border border-white/[0.06] rounded-3xl shadow-2xl p-10 max-w-lg w-full transform animate-scaleIn overflow-hidden">
+              {/* Decorative atmospheric glow */}
+              <div className="absolute -top-32 -right-32 w-64 h-64 bg-vital-cyan/10 rounded-full blur-[100px] pointer-events-none" />
+              <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-synapse-amber/10 rounded-full blur-[80px] pointer-events-none" />
 
-            {/* Title */}
-            <h3 className="text-2xl font-bold text-center text-white mb-2">
-              Taking a Quick Break
-            </h3>
+              {/* Top accent line */}
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-px bg-gradient-to-r from-transparent via-vital-cyan/50 to-transparent" />
 
-            {/* Subtitle */}
-            <p className="text-center text-clinical-cyan/80 text-sm font-medium mb-4">
-              Our AI needs a moment to recharge
-            </p>
-
-            {/* Message */}
-            <div className="bg-white/5 rounded-2xl p-4 mb-6 border border-white/10">
-              <p className="text-center text-gray-300 text-sm leading-relaxed">
-                {retryError ||
-                  "The content generation service is temporarily busy."}
-              </p>
-              <p className="text-center text-gray-500 text-xs mt-2">
-                This happens occasionally with complex topics. Don't worry -
-                your progress is safe!
-              </p>
-            </div>
-
-            {/* Countdown Timer */}
-            {retryCountdown > 0 && (
-              <div className="flex flex-col items-center mb-6">
-                <div className="relative w-24 h-24">
-                  <svg className="w-24 h-24 -rotate-90">
-                    <circle
-                      cx="48"
-                      cy="48"
-                      r="44"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      fill="transparent"
-                      className="text-charcoal"
-                    />
-                    <circle
-                      cx="48"
-                      cy="48"
-                      r="44"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      fill="transparent"
-                      strokeDasharray={276}
-                      strokeDashoffset={276 - (276 * retryCountdown) / 60}
-                      className="text-clinical-cyan transition-all duration-1000"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-2xl font-bold text-white">
-                      {retryCountdown}s
-                    </span>
-                  </div>
+              {/* Icon with pulse animation */}
+              <div className="flex justify-center mb-8 relative">
+                <div className="absolute inset-0 w-24 h-24 mx-auto rounded-full bg-vital-cyan/10 animate-ping" />
+                <div className="relative w-24 h-24 rounded-2xl bg-gradient-to-br from-vital-cyan/15 to-clinical-teal/10 border border-vital-cyan/20 flex items-center justify-center backdrop-blur-sm">
+                  <Activity className="w-12 h-12 text-vital-cyan animate-pulse" />
                 </div>
-                <p className="text-sm text-gray-400 mt-2">
-                  Auto-retry in progress...
+              </div>
+
+              {/* Title */}
+              <h3 className="text-3xl font-serif italic text-center text-serum-white mb-2 relative">
+                Taking a Moment
+              </h3>
+
+              {/* Subtitle */}
+              <p className="text-center text-vital-cyan/80 text-sm font-sans tracking-wide mb-6">
+                Our neural engine needs to recalibrate
+              </p>
+
+              {/* Message */}
+              <div className="glass-slide rounded-2xl p-5 mb-8 relative">
+                <p className="text-center text-gray-200 text-sm leading-relaxed font-sans">
+                  {retryError ||
+                    "The content synthesis process requires additional time."}
+                </p>
+                <p className="text-center text-gray-500 text-xs mt-3 font-mono">
+                  Your progress is safely preserved.
                 </p>
               </div>
-            )}
 
-            {/* Buttons */}
-            <div className="flex gap-3">
-              {/* Cancel / Return to Upload */}
-              <button
-                onClick={() => {
-                  setShowRetryModal(false);
-                  setRetryCountdown(0);
-                  setStatus(ProcessingStatus.IDLE);
-                  setLibrary((prev) =>
-                    prev.filter((n) => n.id !== activeNoteId)
-                  );
-                  setActiveNoteId(null);
-                  setStagingFiles([]);
-                  setTopicName("");
-                  setActiveNav("dashboard");
-                }}
-                className="flex-1 px-6 py-3.5 rounded-xl bg-charcoal/80 border border-glass-border text-gray-300 font-medium hover:bg-charcoal hover:border-gray-500 transition-all duration-200 hover:scale-[1.02] flex items-center justify-center gap-2"
-              >
-                <X size={18} />
-                Cancel
-              </button>
-
-              {/* Try Again */}
-              <button
-                onClick={async () => {
-                  if (retryCountdown > 0) return; // Prevent clicking during countdown
-
-                  // Start 60s countdown
-                  setRetryCountdown(60);
-                  const interval = setInterval(() => {
-                    setRetryCountdown((prev) => {
-                      if (prev <= 1) {
-                        clearInterval(interval);
-                        // Auto-retry after countdown
-                        setShowRetryModal(false);
-                        setStatus(ProcessingStatus.BUILDING_GRAPH);
-                        setIsThinking(true);
-                        startDeepDiveStreaming().catch((e) => {
-                          console.error("Auto-retry failed:", e);
-                          setShowRetryModal(true);
-                          setRetryError(
-                            "Auto-retry failed. Please try again or start over."
-                          );
-                        });
-                        return 0;
-                      }
-                      return prev - 1;
-                    });
-                  }, 1000);
-                }}
-                disabled={retryCountdown > 0}
-                className={`flex-1 px-6 py-3.5 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
-                  retryCountdown > 0
-                    ? "bg-gray-700 text-gray-400 cursor-not-allowed"
-                    : "bg-gradient-to-r from-clinical-teal to-clinical-cyan text-white hover:shadow-lg hover:shadow-clinical-teal/30 hover:scale-[1.02]"
-                }`}
-              >
-                <Zap size={18} />
-                {retryCountdown > 0 ? "Waiting..." : "Retry Now"}
-              </button>
-            </div>
-
-            {/* Encouraging message */}
-            <p className="text-center text-gray-500 text-xs mt-4">
-              💡 Tip: Smaller files or simpler topics process faster
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Sidebar: Navigation between dashboard and library */}
-      <aside className="w-20 border-r border-glass-border flex flex-col items-center py-6 gap-8 bg-charcoal/50 z-30 transition-colors duration-300">
-        <div
-          className="w-10 h-10 rounded-xl bg-clinical-cyan flex items-center justify-center shadow-[0_0_20px_rgba(6,182,212,0.3)] cursor-pointer hover:scale-105 transition-transform"
-          onClick={() => {
-            setActiveNoteId(null);
-            setActiveNav("dashboard");
-          }}
-          title="New Session"
-        >
-          <Brain className="text-black" size={24} />
-        </div>
-
-        <nav className="flex flex-col gap-6 w-full px-4">
-          <button
-            onClick={() => {
-              setActiveNoteId(null);
-              setActiveNav("dashboard");
-            }}
-            className={`p-3 rounded-lg transition-all flex justify-center ${
-              activeNav === "dashboard" && !activeNoteId
-                ? "text-clinical-cyan bg-clinical-cyan/10"
-                : "text-gray-500 hover:text-white"
-            }`}
-          >
-            <UploadCloud size={20} />
-          </button>
-          <button
-            onClick={() => {
-              setActiveNav("library");
-              setIsChatOpen(false);
-              setSelectedText(null);
-            }}
-            className={`p-3 rounded-lg transition-all flex justify-center ${
-              activeNav === "library"
-                ? "text-clinical-cyan bg-clinical-cyan/10"
-                : "text-gray-500 hover:text-white"
-            }`}
-          >
-            <Library size={20} />
-          </button>
-        </nav>
-      </aside>
-
-      {/* Main content area with conditional views */}
-      <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
-        {/* Global header with branding and status */}
-        <header className="h-14 border-b border-glass-border flex items-center justify-between px-6 bg-charcoal/30 backdrop-blur-sm z-20 shrink-0 transition-colors duration-300">
-          <div className="flex items-center gap-3">
-            <h1 className="text-lg font-medium tracking-wide text-white font-sans">
-              SYNAPSE <span className="font-light text-gray-400">MED</span>
-            </h1>
-            {activeNote && (
-              <>
-                <span className="text-gray-600">/</span>
-                <span className="text-sm font-mono text-clinical-cyan truncate max-w-[200px]">
-                  {activeNote.title}
-                </span>
-              </>
-            )}
-          </div>
-          <div className="flex items-center gap-4">
-            {isBirthday() && (
-              <div className="absolute top-0 left-0 right-0 h-1 z-[60] bg-gradient-to-r from-pink-500 via-red-500 to-yellow-500 animate-pulse" />
-            )}
-            <div className="flex items-center gap-3">
-              {isBirthday() && (
-                <Cake size={16} className="text-pink-400 animate-bounce" />
+              {/* Countdown Timer */}
+              {retryCountdown > 0 && (
+                <div className="flex flex-col items-center mb-8">
+                  <div className="relative w-28 h-28">
+                    <svg className="w-28 h-28 -rotate-90">
+                      <circle
+                        cx="56"
+                        cy="56"
+                        r="50"
+                        stroke="currentColor"
+                        strokeWidth="3"
+                        fill="transparent"
+                        className="text-white/5"
+                      />
+                      <circle
+                        cx="56"
+                        cy="56"
+                        r="50"
+                        stroke="currentColor"
+                        strokeWidth="3"
+                        fill="transparent"
+                        strokeDasharray={314}
+                        strokeDashoffset={314 - (314 * retryCountdown) / 60}
+                        className="text-vital-cyan transition-all duration-1000"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-3xl font-mono font-light text-serum-white">
+                        {retryCountdown}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-3 tracking-widest uppercase font-sans">
+                    Auto-retry in progress
+                  </p>
+                </div>
               )}
-              <span className="text-xs font-mono text-gray-400 hidden md:block">
-                Welcome,{" "}
-                <span className="text-clinical-cyan">{userProfile?.name}</span>
-              </span>
-              {/* Profile Edit Button */}
-              <button
-                onClick={() => setShowProfileEditor(true)}
-                className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/5 border border-white/10 hover:border-clinical-cyan/50 hover:bg-clinical-cyan/10 transition-all group"
-                title="Edit Profile"
-              >
-                {userProfile?.profilePicture ? (
-                  <img
-                    src={userProfile.profilePicture}
-                    alt="Profile"
-                    className="w-5 h-5 rounded-full object-cover"
-                  />
-                ) : (
-                  <User
-                    size={14}
-                    className="text-clinical-text/60 group-hover:text-clinical-cyan transition-colors"
-                  />
-                )}
-                <Settings
-                  size={12}
-                  className="text-clinical-text/40 group-hover:text-clinical-cyan transition-colors"
-                />
-              </button>
-            </div>
 
-            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10">
-              <Zap size={12} className="text-clinical-amber" />
-              <span className="text-[10px] font-mono text-gray-300">
-                FLOW STATE: ON
-              </span>
-            </div>
-          </div>
-        </header>
-
-        {/* --- VIEW: UPLOAD DASHBOARD --- */}
-        {activeNav === "dashboard" && !activeNoteId && (
-          <div className="flex-1 overflow-y-auto p-8 flex flex-col items-center">
-            <div className="max-w-3xl w-full space-y-8 animate-[fadeIn_0.5s_ease-out]">
-              <div className="text-center space-y-2">
-                <h2 className="text-4xl font-light text-white font-sans">
-                  Clinical Intelligence Engine
-                </h2>
-                <p className="text-gray-400">
-                  Upload lectures, PDFs, or photos. We'll build the knowledge
-                  graph.
-                </p>
-              </div>
-
-              {/* Staging Area */}
-              <div className="bg-charcoal/50 border border-glass-border rounded-2xl p-6 space-y-6 shadow-2xl">
-                <div>
-                  <label className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-2 block">
-                    Session Topic
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g., Ischemic Heart Disease"
-                    value={topicName}
-                    onChange={(e) => setTopicName(e.target.value)}
-                    className="w-full bg-obsidian border border-gray-700 rounded-lg px-4 py-3 text-white focus:border-clinical-cyan focus:outline-none transition-colors"
-                  />
-                </div>
-
-                {/* File Drop */}
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-gray-700 hover:border-clinical-cyan/50 bg-white/5 hover:bg-white/10 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition-all gap-4"
+              {/* Buttons */}
+              <div className="flex gap-4">
+                <button
+                  onClick={() => {
+                    setShowRetryModal(false);
+                    setRetryCountdown(0);
+                    setStatus(ProcessingStatus.IDLE);
+                    setLibrary((prev) =>
+                      prev.filter((n) => n.id !== activeNoteId)
+                    );
+                    setActiveNoteId(null);
+                    setStagingFiles([]);
+                    setTopicName("");
+                    setActiveNav("dashboard");
+                  }}
+                  className="flex-1 px-6 py-4 rounded-xl bg-white/[0.03] border border-white/[0.08] text-gray-200 font-medium hover:bg-white/[0.06] hover:border-white/[0.15] hover:text-serum-white transition-all duration-300 flex items-center justify-center gap-2 group"
                 >
-                  <input
-                    type="file"
-                    multiple
-                    ref={fileInputRef}
-                    onChange={handleFileSelect}
-                    className="hidden"
-                    accept=".pdf,.txt,.png,.jpg,.jpeg,.heic,.heif,.webp,.mp3,.wav,.m4a,.aac,.flac,.ogg,.mp4,.webm,.mov,.mpeg,.mpg,.3gpp,.wmv,.avi,.mp4,.flv"
+                  <X
+                    size={18}
+                    className="group-hover:rotate-90 transition-transform duration-300"
                   />
-                  <div className="w-16 h-16 rounded-full bg-gray-800 flex items-center justify-center border border-white/5 shadow-lg">
-                    <Layers className="text-clinical-cyan" size={32} />
-                  </div>
-                  <div className="text-center">
-                    <p className="text-white font-medium">
-                      Click to upload files
-                    </p>
-                    <p className="text-sm text-gray-500 mt-1">
-                      PDF • Images (PNG, JPG, HEIC, WebP) • Audio (MP3, WAV,
-                      M4A) • Video (MP4, WebM, MOV)
-                    </p>
-                    <p className="text-xs text-gray-600 mt-1">
-                      Max 500MB input • Up to 3,000 files • Videos ≤45min •
-                      Audio ≤8hrs
-                    </p>
-                  </div>
-                </div>
-
-                {/* Staged Files List */}
-                {stagingFiles.length > 0 && (
-                  <div className="space-y-2">
-                    <label className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-2 block">
-                      Queued Resources ({stagingFiles.length})
-                    </label>
-                    {stagingFiles.map((f, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5"
-                      >
-                        <div className="flex items-center gap-3">
-                          {f.type.includes("pdf") ? (
-                            <FileText size={18} className="text-red-400" />
-                          ) : f.type.includes("image") ? (
-                            <FileImage size={18} className="text-blue-400" />
-                          ) : (
-                            <FileAudio size={18} className="text-purple-400" />
-                          )}
-                          <span className="text-sm text-gray-200 truncate max-w-[300px]">
-                            {f.file.name}
-                          </span>
-                        </div>
-                        <button
-                          onClick={() => removeStagedFile(i)}
-                          className="text-gray-500 hover:text-red-400"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                  <span className="tracking-wide">Cancel</span>
+                </button>
 
                 <button
-                  onClick={startDeepDiveStreaming} // 4️⃣ UPDATED BUTTON
-                  disabled={stagingFiles.length === 0}
-                  className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${
-                    stagingFiles.length > 0
-                      ? "bg-clinical-cyan text-black hover:bg-cyan-400 hover:scale-[1.01]"
-                      : "bg-gray-800 text-gray-500 cursor-not-allowed"
+                  onClick={async () => {
+                    if (retryCountdown > 0) return;
+                    setRetryCountdown(60);
+                    const interval = setInterval(() => {
+                      setRetryCountdown((prev) => {
+                        if (prev <= 1) {
+                          clearInterval(interval);
+                          setShowRetryModal(false);
+                          setStatus(ProcessingStatus.BUILDING_GRAPH);
+                          setIsThinking(true);
+                          startDeepDiveStreaming().catch((e) => {
+                            console.error("Auto-retry failed:", e);
+                            setShowRetryModal(true);
+                            setRetryError(
+                              "Auto-retry failed. Please try again or start over."
+                            );
+                          });
+                          return 0;
+                        }
+                        return prev - 1;
+                      });
+                    }, 1000);
+                  }}
+                  disabled={retryCountdown > 0}
+                  className={`flex-1 px-6 py-4 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${
+                    retryCountdown > 0
+                      ? "bg-white/[0.03] text-gray-500 cursor-not-allowed"
+                      : "bg-vital-cyan text-bio-void hover:shadow-[0_0_40px_rgba(42,212,212,0.3)] hover:scale-[1.02]"
                   }`}
                 >
-                  <Sparkles size={18} />
-                  <span>
-                    {stagingFiles.length > 0
-                      ? "Synthesize Master Guide"
-                      : "Add Files to Begin"}
+                  <Zap size={18} />
+                  <span className="tracking-wide">
+                    {retryCountdown > 0 ? "Waiting..." : "Retry Now"}
                   </span>
                 </button>
               </div>
@@ -870,570 +701,1128 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* --- VIEW: LIBRARY --- */}
-        {activeNav === "library" && (
-          <div className="flex-1 overflow-y-auto p-8">
-            <h2 className="text-2xl font-light text-white mb-6">
-              Knowledge Library
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {library.map((note) => (
-                <div
-                  key={note.id}
-                  onClick={() => {
-                    setActiveNoteId(note.id);
-                    setActiveNav("dashboard");
-                  }}
-                  className="bg-charcoal/50 border border-glass-border p-6 rounded-2xl cursor-pointer hover:border-clinical-cyan/50 hover:bg-white/5 transition-all group"
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="w-10 h-10 rounded-lg bg-clinical-teal/20 flex items-center justify-center text-clinical-teal">
-                      <GraduationCap size={20} />
-                    </div>
-                    <span className="text-xs text-gray-500 font-mono">
-                      {new Date(note.timestamp).toLocaleDateString()}
+        {/* ═══════════════════════════════════════════════════════════════
+          SIDEBAR: "The Spine" - Functional Minimalist Navigation
+          ═══════════════════════════════════════════════════════════════ */}
+        <aside
+          className={`w-20 border-r border-white/[0.04] flex flex-col items-center py-8 gap-10 z-30 transition-colors duration-500 ${
+            activeNoteId ? "bg-[#030406]" : "bg-bio-deep/50 backdrop-blur-sm"
+          }`}
+        >
+          {/* Synapse Neural Mark - Pulsing Life Indicator */}
+          <div
+            className="relative cursor-pointer group"
+            onClick={() => {
+              setActiveNoteId(null);
+              setActiveNav("dashboard");
+            }}
+            title="New Session"
+          >
+            <div className="absolute inset-0 w-4 h-4 m-auto rounded-full bg-vital-cyan/30 animate-ping" />
+            <div className="w-4 h-4 rounded-full bg-vital-cyan shadow-[0_0_20px_rgba(42,212,212,0.6)] group-hover:shadow-[0_0_30px_rgba(42,212,212,0.8)] transition-shadow duration-300" />
+          </div>
+
+          {/* Navigation Actions */}
+          <nav className="flex flex-col gap-2 w-full px-3">
+            <button
+              onClick={() => {
+                setActiveNoteId(null);
+                setActiveNav("dashboard");
+              }}
+              className={`relative p-3.5 rounded-xl transition-all duration-300 flex justify-center group ${
+                activeNav === "dashboard" && !activeNoteId
+                  ? "text-vital-cyan bg-vital-cyan/[0.08]"
+                  : "text-gray-500 hover:text-serum-white hover:bg-white/[0.03]"
+              }`}
+              title="Upload"
+            >
+              <UploadCloud size={20} className="relative z-10" />
+              {activeNav === "dashboard" && !activeNoteId && (
+                <div className="absolute inset-0 rounded-xl border border-vital-cyan/20" />
+              )}
+              {/* Hover label */}
+              <span className="absolute left-full ml-3 text-[10px] font-mono tracking-widest text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                UPLOAD
+              </span>
+            </button>
+
+            <button
+              onClick={() => {
+                setActiveNav("library");
+                setIsChatOpen(false);
+                setSelectedText(null);
+              }}
+              className={`relative p-3.5 rounded-xl transition-all duration-300 flex justify-center group ${
+                activeNav === "library"
+                  ? "text-vital-cyan bg-vital-cyan/[0.08]"
+                  : "text-gray-500 hover:text-serum-white hover:bg-white/[0.03]"
+              }`}
+              title="Library"
+            >
+              <Library size={20} className="relative z-10" />
+              {activeNav === "library" && (
+                <div className="absolute inset-0 rounded-xl border border-vital-cyan/20" />
+              )}
+              <span className="absolute left-full ml-3 text-[10px] font-mono tracking-widest text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                LIBRARY
+              </span>
+            </button>
+          </nav>
+
+          {/* Bottom: Profile Avatar */}
+          <div className="mt-auto">
+            <button
+              onClick={() => setShowProfileEditor(true)}
+              className="relative group"
+              title="Edit Profile"
+            >
+              {userProfile?.profilePicture ? (
+                <img
+                  src={userProfile.profilePicture}
+                  alt="Profile"
+                  className="w-9 h-9 rounded-xl object-cover border border-white/10 opacity-70 hover:opacity-100 hover:border-vital-cyan/30 transition-all duration-300"
+                />
+              ) : (
+                <div className="w-9 h-9 rounded-xl bg-white/[0.03] border border-white/10 flex items-center justify-center opacity-70 hover:opacity-100 hover:border-vital-cyan/30 transition-all duration-300">
+                  <User size={16} className="text-gray-200" />
+                </div>
+              )}
+              <span className="absolute left-full ml-3 text-[10px] font-mono tracking-widest text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                PROFILE
+              </span>
+            </button>
+          </div>
+        </aside>
+
+        {/* Main content area with conditional views */}
+        <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
+          {/* ═══════════════════════════════════════════════════════════════
+            HEADER: The Editorial Statement
+            ═══════════════════════════════════════════════════════════════ */}
+          <header
+            className={`h-16 border-b border-white/[0.04] flex items-center justify-between px-8 z-20 shrink-0 transition-colors duration-500 ${
+              activeNoteId ? "bg-[#030406]" : "bg-bio-deep/30 backdrop-blur-md"
+            }`}
+          >
+            {/* Left: Brand + Context */}
+            <div className="flex items-center gap-4">
+              <h1 className="text-base font-sans tracking-[0.15em] text-serum-white/90 font-medium uppercase">
+                Synapse <span className="font-light text-gray-500">Med</span>
+              </h1>
+              {activeNote && (
+                <>
+                  <span className="h-4 w-px bg-white/10" />
+                  <span className="text-sm font-serif italic text-vital-cyan/80 truncate max-w-[220px]">
+                    {activeNote.title}
+                  </span>
+                </>
+              )}
+            </div>
+
+            {/* Right: Status & Profile */}
+            <div className="flex items-center gap-5">
+              {/* Birthday Banner Accent */}
+              {isBirthday && (
+                <div className="absolute top-0 left-0 right-0 h-0.5 z-[60] bg-gradient-to-r from-pink-500 via-tissue-rose to-synapse-amber animate-pulse" />
+              )}
+
+              {/* Time-Based Greeting (no username) */}
+              <div className="hidden md:flex items-center gap-3">
+                {isBirthday && (
+                  <Cake size={14} className="text-pink-400 animate-bounce" />
+                )}
+                <span className="text-xs font-sans text-gray-500">
+                  {greeting.prefix}
+                </span>
+              </div>
+
+              {/* Profile Button */}
+              <button
+                onClick={() => setShowProfileEditor(true)}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:border-vital-cyan/30 hover:bg-vital-cyan/[0.03] transition-all duration-300 group"
+                title="Edit Profile"
+              >
+                {userProfile?.profilePicture ? (
+                  <img
+                    src={userProfile.profilePicture}
+                    alt="Profile"
+                    className="w-5 h-5 rounded-lg object-cover"
+                  />
+                ) : (
+                  <User
+                    size={14}
+                    className="text-gray-500 group-hover:text-vital-cyan transition-colors"
+                  />
+                )}
+                <Settings
+                  size={11}
+                  className="text-gray-500 group-hover:text-vital-cyan transition-colors"
+                />
+              </button>
+
+              {/* Flow State Indicator */}
+              <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+                <div className="w-1.5 h-1.5 rounded-full bg-synapse-amber shadow-[0_0_8px_rgba(240,180,41,0.6)] animate-pulse" />
+                <span className="text-[9px] font-mono text-gray-200 tracking-[0.2em] uppercase">
+                  Flow State
+                </span>
+              </div>
+            </div>
+          </header>
+
+          {/* ═══════════════════════════════════════════════════════════════
+            VIEW: UPLOAD DASHBOARD - "The Cognitive Canvas"
+            ═══════════════════════════════════════════════════════════════ */}
+          {activeNav === "dashboard" && !activeNoteId && (
+            <div className="flex-1 overflow-y-auto relative">
+              {/* Content Layer */}
+              <div className="relative z-10 max-w-6xl mx-auto px-8 py-6 lg:px-16 lg:py-8">
+                {/* Editorial Header */}
+                <div className="mb-6 lg:mb-4 animate-[fadeInUp_0.6s_ease-out]">
+                  <div className="flex items-center gap-3 mb-3">
+                    {greeting.icon &&
+                      (() => {
+                        const Icon = greeting.icon;
+                        return (
+                          <div
+                            className={`p-1 rounded-md bg-white/5 ${
+                              greeting.accentColor || "text-vital-cyan"
+                            } opacity-70`}
+                          >
+                            <Icon size={12} />
+                          </div>
+                        );
+                      })()}
+                    <span className="h-px w-8 bg-vital-cyan/60" />
+                    <span className="font-sans text-[11px] uppercase tracking-[0.25em] text-vital-cyan/90 font-semibold">
+                      Ready for Synthesis
                     </span>
                   </div>
-                  <h3 className="text-xl font-medium text-white group-hover:text-clinical-cyan transition-colors mb-2">
-                    {note.title}
-                  </h3>
-                  <p className="text-sm text-gray-400 line-clamp-2 mb-4">
-                    {note.summary}
-                  </p>
+                  <div className="flex flex-col gap-1">
+                    <h2 className="font-serif text-5xl lg:text-6xl text-serum-white/95 italic tracking-tight leading-tight">
+                      Welcome back,
+                    </h2>
+                    <div
+                      className={`font-serif text-5xl lg:text-6xl not-italic font-semibold tracking-tight leading-tight py-2 ${
+                        greeting.gradient
+                          ? `bg-gradient-to-r ${greeting.gradient} bg-clip-text text-transparent`
+                          : "text-serum-white/95"
+                      }`}
+                    >
+                      {userProfile?.name}.
+                    </div>
+                    {greeting.suffix && (
+                      <div
+                        key={greeting.suffix}
+                        className={`mt-4 text-sm lg:text-base ${
+                          greeting.accentColor || "text-vital-cyan"
+                        }/80 font-sans not-italic ${SUFFIX_ANIMATION_CLASS}`}
+                      >
+                        ✨ {greeting.suffix}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
 
-        {/* --- VIEW: STUDY WORKSPACE (Active Note) --- */}
-        {activeNoteId && activeNote && (
-          <div className="flex-1 flex overflow-hidden">
-            {/* MAIN CONTENT AREA */}
-            <div className="flex-1 flex relative overflow-hidden">
-              {/* MODE: MASTER GUIDE */}
-              {activeTab === "guide" && (
-                <div className="flex-1 flex flex-col animate-[fadeIn_0.3s_ease-out]">
-                  {/* Toolbar */}
-                  <div className="h-12 border-b border-glass-border flex items-center px-4 bg-charcoal/20 gap-4 justify-between">
-                    <div className="flex gap-4">
-                      <button
-                        onClick={() => setActiveTab("guide")}
-                        className="px-4 py-1.5 rounded-full text-xs font-medium bg-clinical-cyan text-black transition-all shadow-[0_0_10px_rgba(6,182,212,0.3)]"
-                      >
-                        Master Guide
-                      </button>
-                      <button
-                        onClick={() => setActiveTab("graph")}
-                        className="px-4 py-1.5 rounded-full text-xs font-medium text-gray-400 hover:text-white transition-all hover:bg-white/5"
-                      >
-                        Neural Web
-                      </button>
+                {/* Main Grid: Instructions + Upload Zone */}
+                <div className="grid grid-cols-12 gap-8 lg:gap-12 items-start">
+                  {/* Left Column: Step Instructions */}
+                  <div className="col-span-12 lg:col-span-5 mt-8 space-y-10 animate-[fadeInUp_0.6s_ease-out_0.1s_both]">
+                    {/* Step 01: Topic */}
+                    <div className="relative pl-6 border-l border-white/10">
+                      <span className="absolute -left-[5px] top-0 w-2.5 h-2.5 rounded-full bg-vital-cyan shadow-[0_0_8px_rgba(42,212,212,0.4)]" />
+                      <h3 className="font-sans text-sm uppercase tracking-[0.2em] text-gray-200 mb-3">
+                        Step 01. Context
+                      </h3>
+                      <input
+                        type="text"
+                        placeholder="Define your study topic..."
+                        value={topicName}
+                        onChange={(e) => setTopicName(e.target.value)}
+                        className="w-full bg-transparent border-b border-white/10 py-2 font-serif text-2xl lg:text-3xl text-serum-white/95 placeholder-gray-400 focus:outline-none focus:border-vital-cyan transition-colors"
+                      />
                     </div>
 
-                    {/* Podcast Controls */}
-                    <div className="flex items-center gap-3">
-                      {/* Chat Toggle Button */}
-                      <button
-                        onClick={handleToggleChat}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[10px] font-bold uppercase tracking-wider transition-all ${
-                          isChatOpen
-                            ? "bg-clinical-cyan/10 border-clinical-cyan text-clinical-cyan shadow-[0_0_15px_rgba(6,182,212,0.2)]"
-                            : "border-white/10 text-gray-400 hover:text-white hover:border-clinical-cyan/50 hover:bg-clinical-cyan/5"
-                        }`}
-                      >
-                        <BrainCircuit size={14} />
-                        <span className="hidden md:block">
-                          {isChatOpen ? "Close AI" : "Ask AI"}
+                    {/* Step 02: Source Info */}
+                    <div className="relative pl-6 border-l border-white/10">
+                      <span className="absolute -left-[5px] top-0 w-2.5 h-2.5 rounded-full bg-gray-700" />
+                      <h3 className="font-sans text-sm uppercase tracking-[0.2em] text-gray-200 mb-3">
+                        Step 02. Source
+                      </h3>
+                      <p className="font-sans text-sm text-gray-200 leading-relaxed max-w-sm">
+                        Drop lecture slides, textbook PDFs, or handwritten
+                        notes.
+                        <br />
+                        <span className="text-gray-200 text-xs mt-2 block">
+                          Synapse will build an interactive knowledge graph,
+                          generate a comprehensive study guide with clinical
+                          pearls, and create an audio podcast for on-the-go
+                          revision.
                         </span>
-                        {!isChatOpen && (
-                          <span className="hidden lg:flex items-center gap-1 text-[8px] text-gray-500 bg-white/5 px-1.5 py-0.5 rounded">
-                            <span className="opacity-60">or</span> highlight
-                            text
-                          </span>
-                        )}
-                      </button>
+                      </p>
+                    </div>
 
-                      {/* Divider */}
-                      <div className="w-px h-5 bg-white/10" />
-
-                      {activeNote.podcastScript &&
-                      activeNote.podcastScript.length > 0 ? (
-                        <PodcastPlayer
-                          script={activeNote.podcastScript}
-                          audioBase64={activeNote.audioBase64}
-                        />
-                      ) : (
-                        <button
-                          onClick={handleGeneratePodcast}
-                          disabled={isGeneratingPodcast}
-                          className="px-3 py-1.5 bg-clinical-rose/10 hover:bg-clinical-rose/20 border border-clinical-rose/30 rounded-lg text-clinical-rose text-[10px] font-bold transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {isGeneratingPodcast ? (
-                            <>
-                              <div className="w-2 h-2 border-2 border-current border-t-transparent rounded-full animate-spin"></div>{" "}
-                              SYNTHESIZING...
-                            </>
-                          ) : (
-                            <>
-                              <Headphones size={12} /> GENERATE PODCAST
-                            </>
-                          )}
-                        </button>
-                      )}
+                    {/* Knowledge Base Stats */}
+                    <div className="pt-6 border-t border-white/[0.06] mt-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-sans text-[10px] uppercase tracking-[0.2em] text-gray-200 mb-1">
+                            Knowledge Base
+                          </p>
+                          <p className="font-serif text-lg italic text-gray-200">
+                            {library.length} Nodes Active
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-sans text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-1">
+                            AI Model
+                          </p>
+                          <p className="font-mono text-xs text-vital-cyan/85">
+                            Gemini 2.5 Flash
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Content + Chat Layout */}
-                  <div className="flex-1 flex overflow-hidden relative">
-                    {/* Main Guide Content - Adjusts when chat opens */}
+                  {/* Right Column: Upload Zone (The Petri Dish) */}
+                  <div className="col-span-12 lg:col-span-7 animate-[fadeInUp_0.6s_ease-out_0.2s_both] lg:-mt-32">
                     <div
-                      className={`overflow-y-auto bg-obsidian scroll-smooth transition-all duration-300 ease-out ${
-                        isChatOpen ? "pr-[600px]" : "w-full"
+                      onClick={() => fileInputRef.current?.click()}
+                      className={`glass-slide interactive-card relative w-full min-h-[380px] rounded-[2rem] p-8 lg:p-10 cursor-pointer overflow-hidden group ${
+                        stagingFiles.length > 0
+                          ? "border border-vital-cyan/20"
+                          : "border border-white/[0.04]"
                       }`}
-                      style={{ flex: 1 }}
-                      onMouseUp={handleTextSelection}
                     >
-                      <div
-                        className={`py-10 transition-all duration-300 ${
-                          isChatOpen
-                            ? "pl-16 pr-10 max-w-5xl"
-                            : "px-8 max-w-4xl mx-auto"
-                        }`}
-                      >
-                        {showEli5 && activeNote.eli5Analogy && (
-                          <div className="mb-8 p-6 bg-gradient-to-br from-clinical-purple/10 to-transparent border border-clinical-purple/30 rounded-xl">
-                            <h3 className="text-clinical-purple font-bold mb-2 text-sm uppercase">
-                              Analogy Time
+                      <input
+                        type="file"
+                        multiple
+                        ref={fileInputRef}
+                        onChange={handleFileSelect}
+                        className="hidden"
+                        accept=".pdf,.txt,.png,.jpg,.jpeg,.heic,.heif,.webp,.mp3,.wav,.m4a,.aac,.flac,.ogg,.mp4,.webm,.mov,.mpeg,.mpg,.3gpp,.wmv,.avi,.mp4,.flv"
+                      />
+
+                      {/* Decorative Glow */}
+                      <div className="absolute top-0 right-0 w-64 h-64 bg-vital-cyan/5 rounded-full blur-[80px] pointer-events-none group-hover:bg-vital-cyan/10 transition-colors duration-500" />
+
+                      <div className="h-full flex flex-col justify-between relative z-10">
+                        {/* Top Row */}
+                        <div className="flex justify-between items-start">
+                          <UploadCloud
+                            size={28}
+                            className="text-gray-500 group-hover:text-vital-cyan transition-colors duration-300"
+                          />
+                          <span className="font-mono text-[8px] text-gray-500 border border-white/[0.06] px-2.5 py-1 rounded-lg tracking-widest uppercase">
+                            Secure Upload
+                          </span>
+                        </div>
+
+                        {/* Center Content */}
+                        <div className="text-center space-y-5 py-10">
+                          <div
+                            className={`cell-membrane w-28 h-28 mx-auto rounded-2xl flex items-center justify-center ${
+                              stagingFiles.length > 0
+                                ? "border-vital-cyan bg-vital-cyan/[0.05]"
+                                : ""
+                            }`}
+                          >
+                            {stagingFiles.length > 0 ? (
+                              <Sparkles size={32} className="text-vital-cyan" />
+                            ) : (
+                              <Plus
+                                size={32}
+                                className="text-gray-200 group-hover:text-vital-cyan transition-colors duration-300"
+                              />
+                            )}
+                          </div>
+                          <div>
+                            <h3 className="font-serif text-3xl text-serum-white mb-2">
+                              {stagingFiles.length > 0
+                                ? `${stagingFiles.length} Sources Ready`
+                                : "Add Clinical Sources"}
                             </h3>
-                            <p className="text-gray-200 text-lg font-medium italic">
-                              "{activeNote.eli5Analogy}"
+                            <p className="font-sans text-[10px] uppercase tracking-[0.2em] text-gray-500">
+                              {stagingFiles.length > 0
+                                ? "Click to add more files"
+                                : "Drop files to begin synthesis"}
                             </p>
+                          </div>
+                        </div>
+
+                        {/* Staged Files Preview */}
+                        {stagingFiles.length > 0 && (
+                          <div
+                            className="mb-6 space-y-2 max-h-32 overflow-y-auto custom-scrollbar"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {stagingFiles.map((f, i) => (
+                              <div
+                                key={i}
+                                className="flex items-center justify-between p-3 bg-white/[0.02] rounded-xl border border-white/[0.04] group/file hover:border-vital-cyan/20 transition-colors"
+                              >
+                                <div className="flex items-center gap-3">
+                                  {f.type.includes("pdf") ? (
+                                    <FileText
+                                      size={16}
+                                      className="text-tissue-rose"
+                                    />
+                                  ) : f.type.includes("image") ? (
+                                    <FileImage
+                                      size={16}
+                                      className="text-vital-cyan"
+                                    />
+                                  ) : (
+                                    <FileAudio
+                                      size={16}
+                                      className="text-neural-purple"
+                                    />
+                                  )}
+                                  <span className="text-xs text-gray-200 truncate max-w-[200px] font-sans">
+                                    {f.file.name}
+                                  </span>
+                                </div>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    removeStagedFile(i);
+                                  }}
+                                  className="text-gray-500 hover:text-tissue-rose transition-colors p-1"
+                                >
+                                  <X size={14} />
+                                </button>
+                              </div>
+                            ))}
                           </div>
                         )}
 
-                        <div className="markdown-content">
-                          <ReactMarkdown
-                            remarkPlugins={[remarkGfm]}
-                            urlTransform={(url) => url} // Allow custom protocols like node:
-                            components={{
-                              // Prevent links in headings
-                              h1: ({ node, children, ...props }) => (
-                                <h1 {...props}>{children}</h1>
-                              ),
-                              h2: ({ node, children, ...props }) => (
-                                <h2 {...props}>{children}</h2>
-                              ),
-                              h3: ({ node, children, ...props }) => (
-                                <h3 {...props}>{children}</h3>
-                              ),
-                              h4: ({ node, children, ...props }) => (
-                                <h4 {...props}>{children}</h4>
-                              ),
-                              h5: ({ node, children, ...props }) => (
-                                <h5 {...props}>{children}</h5>
-                              ),
-                              h6: ({ node, children, ...props }) => (
-                                <h6 {...props}>{children}</h6>
-                              ),
-                              a: ({ node, ...props }) => {
-                                const href = props.href || "";
-
-                                // 🔧 FIXED: Enhanced smart link handler with proper node resolution
-                                if (href.startsWith("node:")) {
-                                  const nodeId = href.split(":")[1];
-                                  return (
-                                    <span
-                                      className="smart-link"
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-
-                                        // Find node by exact ID match
-                                        const targetNode =
-                                          activeNote.graphData.nodes.find(
-                                            (n) => n.id === nodeId
-                                          );
-
-                                        if (targetNode) {
-                                          setSelectedNode(targetNode);
-                                          setActiveTab("graph");
-                                        }
-                                      }}
-                                      role="button"
-                                      tabIndex={0}
-                                      onKeyDown={(e) => {
-                                        if (
-                                          e.key === "Enter" ||
-                                          e.key === " "
-                                        ) {
-                                          e.preventDefault();
-                                          const targetNode =
-                                            activeNote.graphData.nodes.find(
-                                              (n) => n.id === nodeId
-                                            );
-                                          if (targetNode) {
-                                            setSelectedNode(targetNode);
-                                            setActiveTab("graph");
-                                          }
-                                        }
-                                      }}
-                                    >
-                                      {props.children}
-                                    </span>
-                                  );
-                                }
-                                if (href.startsWith("http")) {
-                                  return (
-                                    <a
-                                      {...props}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center gap-0.5 text-[0.8em] font-sans font-medium text-gray-500 bg-white/5 px-1.5 py-0.5 rounded border border-white/10 hover:border-clinical-cyan hover:text-clinical-cyan transition-all align-middle mx-1"
-                                    >
-                                      {props.children} <ExternalLink size={8} />
-                                    </a>
-                                  );
-                                }
-                                return (
-                                  <span
-                                    className="text-clinical-cyan/80 border-b border-dotted border-clinical-cyan/50 cursor-help"
-                                    title="Reference"
-                                  >
-                                    {props.children}
-                                  </span>
-                                );
-                              },
-                            }}
+                        {/* Bottom Row */}
+                        <div className="flex items-end justify-between font-mono text-[9px] text-gray-500 uppercase tracking-widest">
+                          <div
+                            className={
+                              stagingFiles.length > 0 ? "text-vital-cyan" : ""
+                            }
                           >
-                            {activeNote.markdownContent}
-                          </ReactMarkdown>
+                            {stagingFiles.length > 0
+                              ? `${stagingFiles.length} sources detected`
+                              : "Waiting for input"}
+                          </div>
+                          <div>PDF · Images · Audio · Video</div>
                         </div>
+                      </div>
+                    </div>
 
-                        {/* Clinical Pearls - Enhanced Design */}
-                        {activeNote.pearls &&
-                          activeNote.pearls.length > 0 &&
-                          activeNote.markdownContent &&
-                          activeNote.markdownContent.length > 100 && (
-                            <div className="mb-8">
-                              {/* Section Header */}
-                              <div className="flex items-center gap-2 mb-4">
-                                <Sparkles className="w-5 h-5 text-clinical-amber" />
-                                <h3 className="text-lg font-bold text-white">
-                                  Clinical Pearls
+                    {/* Synthesize Button */}
+                    <button
+                      onClick={startDeepDiveStreaming}
+                      disabled={stagingFiles.length === 0}
+                      className={`w-full mt-6 py-5 rounded-2xl font-sans font-semibold tracking-[0.1em] uppercase text-sm flex items-center justify-center gap-3 transition-all duration-500 ${
+                        stagingFiles.length > 0
+                          ? "bg-vital-cyan text-bio-void hover:shadow-[0_0_50px_rgba(42,212,212,0.35)] hover:scale-[1.01]"
+                          : "bg-white/[0.02] text-gray-500 cursor-not-allowed border border-white/[0.04]"
+                      }`}
+                    >
+                      {stagingFiles.length > 0 ? (
+                        <>
+                          <Sparkles size={18} className="animate-pulse" />
+                          <span>Start Synthesis</span>
+                        </>
+                      ) : (
+                        <span>Add Files to Begin</span>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Footer Meta */}
+                <footer className="mt-12 lg:mt-10 pt-8 border-t border-white/[0.04] flex justify-between text-[9px] font-mono text-gray-500 tracking-[0.15em] uppercase">
+                  <div>AI Model: Gemini 2.5 Flash</div>
+                  <div>
+                    Status:{" "}
+                    {stagingFiles.length > 0
+                      ? "Ready for Synthesis"
+                      : "Awaiting Input"}
+                  </div>
+                  <div>Synapse Med</div>
+                </footer>
+              </div>
+            </div>
+          )}
+
+          {/* ═══════════════════════════════════════════════════════════════
+            VIEW: LIBRARY - Knowledge Archive
+            ═══════════════════════════════════════════════════════════════ */}
+          {activeNav === "library" && (
+            <div className="flex-1 overflow-y-auto relative">
+              {/* Atmospheric Background */}
+              <div className="absolute top-20 left-1/4 w-[500px] h-[500px] bg-neural-purple/[0.02] rounded-full blur-[150px] pointer-events-none" />
+
+              <div className="relative z-10 p-10 lg:p-16">
+                {/* Header */}
+                <div className="mb-12 animate-[fadeInUp_0.6s_ease-out]">
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className="h-px w-10 bg-neural-purple/50" />
+                    <span className="font-sans text-[10px] uppercase tracking-[0.25em] text-neural-purple/90 font-semibold">
+                      Knowledge Archive
+                    </span>
+                  </div>
+                  <h2 className="font-serif text-4xl lg:text-5xl text-serum-white italic">
+                    Your Neural Library
+                  </h2>
+                  <p className="text-gray-500 mt-3 font-sans text-sm">
+                    {library.length} synthesized guides • Click to explore
+                  </p>
+                </div>
+
+                {/* Library Grid */}
+                {library.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 animate-[fadeInUp_0.6s_ease-out_0.1s_both]">
+                    {library.map((note, index) => (
+                      <div
+                        key={note.id}
+                        onClick={() => {
+                          setActiveNoteId(note.id);
+                          setActiveNav("dashboard");
+                        }}
+                        className="interactive-card glass-slide relative p-7 rounded-2xl cursor-pointer border border-white/[0.04] group overflow-hidden"
+                        style={{ animationDelay: `${index * 0.05}s` }}
+                      >
+                        {/* Decorative accent */}
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-vital-cyan/[0.03] rounded-full blur-[60px] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+                        <div className="relative z-10">
+                          {/* Top Row */}
+                          <div className="flex justify-between items-start mb-5">
+                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-vital-cyan/10 to-clinical-teal/5 border border-vital-cyan/10 flex items-center justify-center">
+                              <GraduationCap
+                                size={22}
+                                className="text-vital-cyan"
+                              />
+                            </div>
+                            <span className="text-[10px] text-gray-500 font-mono tracking-wider">
+                              {new Date(note.timestamp).toLocaleDateString(
+                                "en-US",
+                                {
+                                  month: "short",
+                                  day: "numeric",
+                                }
+                              )}
+                            </span>
+                          </div>
+
+                          {/* Content */}
+                          <h3 className="text-xl font-serif text-serum-white group-hover:text-vital-cyan transition-colors duration-300 mb-3 line-clamp-2">
+                            {note.title}
+                          </h3>
+                          <p className="text-sm text-gray-500 line-clamp-2 font-sans leading-relaxed mb-5">
+                            {note.summary}
+                          </p>
+
+                          {/* Stats */}
+                          <div className="flex items-center gap-4 pt-4 border-t border-white/[0.04]">
+                            <div className="flex items-center gap-1.5">
+                              <Brain size={12} className="text-gray-500" />
+                              <span className="text-[10px] text-gray-500 font-mono">
+                                {note.graphData.nodes.length} nodes
+                              </span>
+                            </div>
+                            {note.podcastScript &&
+                              note.podcastScript.length > 0 && (
+                                <div className="flex items-center gap-1.5">
+                                  <Headphones
+                                    size={12}
+                                    className="text-tissue-rose"
+                                  />
+                                  <span className="text-[10px] text-gray-500 font-mono">
+                                    Audio
+                                  </span>
+                                </div>
+                              )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  /* Empty State */
+                  <div className="flex flex-col items-center justify-center py-20 animate-[fadeInUp_0.6s_ease-out]">
+                    <div className="w-24 h-24 rounded-2xl bg-white/[0.02] border border-white/[0.06] flex items-center justify-center mb-6">
+                      <Library size={40} className="text-gray-500" />
+                    </div>
+                    <h3 className="font-serif text-2xl text-gray-200 italic mb-2">
+                      No guides yet
+                    </h3>
+                    <p className="text-gray-500 text-sm font-sans mb-6">
+                      Upload your first clinical sources to begin
+                    </p>
+                    <button
+                      onClick={() => setActiveNav("dashboard")}
+                      className="px-6 py-3 rounded-xl bg-vital-cyan/10 border border-vital-cyan/20 text-vital-cyan text-sm font-medium hover:bg-vital-cyan/20 transition-colors flex items-center gap-2"
+                    >
+                      <Plus size={16} />
+                      Create Your First Guide
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ═══════════════════════════════════════════════════════════════
+            VIEW: STUDY WORKSPACE (Active Note)
+            ═══════════════════════════════════════════════════════════════ */}
+          {activeNoteId && activeNote && (
+            <div className="flex-1 flex overflow-hidden">
+              {/* MAIN CONTENT AREA */}
+              <div className="flex-1 flex relative overflow-hidden">
+                {/* MODE: MASTER GUIDE */}
+                {activeTab === "guide" && (
+                  <div className="flex-1 flex flex-col animate-[fadeIn_0.3s_ease-out]">
+                    {/* Toolbar */}
+                    <div className="h-14 border-b border-white/[0.04] flex items-center px-6 bg-[#030406] gap-6 justify-between">
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => setActiveTab("guide")}
+                          className="px-5 py-2 rounded-xl text-xs font-sans font-medium tracking-wide bg-vital-cyan/10 text-vital-cyan border border-vital-cyan/20 transition-all shadow-[0_0_15px_rgba(42,212,212,0.15)]"
+                        >
+                          Master Guide
+                        </button>
+                        <button
+                          onClick={() => setActiveTab("graph")}
+                          className="px-5 py-2 rounded-xl text-xs font-sans font-medium tracking-wide text-gray-500 hover:text-serum-white transition-all hover:bg-white/[0.03] border border-transparent hover:border-white/[0.06]"
+                        >
+                          Neural Web
+                        </button>
+                      </div>
+
+                      {/* Right Controls */}
+                      <div className="flex items-center gap-4">
+                        {/* Chat Toggle Button */}
+                        <button
+                          onClick={handleToggleChat}
+                          className={`flex items-center gap-2.5 px-4 py-2 rounded-xl border text-[10px] font-sans font-semibold uppercase tracking-[0.1em] transition-all duration-300 ${
+                            isChatOpen
+                              ? "bg-vital-cyan/10 border-vital-cyan/30 text-vital-cyan shadow-[0_0_20px_rgba(42,212,212,0.15)]"
+                              : "border-white/[0.06] text-gray-500 hover:text-serum-white hover:border-vital-cyan/30 hover:bg-vital-cyan/[0.03]"
+                          }`}
+                        >
+                          <BrainCircuit size={14} />
+                          <span className="hidden md:block">
+                            {isChatOpen ? "Close AI" : "Ask AI"}
+                          </span>
+                          {!isChatOpen && (
+                            <span className="hidden lg:flex items-center gap-1 text-[8px] text-gray-500 bg-white/[0.03] px-2 py-0.5 rounded-md font-mono">
+                              or highlight
+                            </span>
+                          )}
+                        </button>
+
+                        {/* Divider */}
+                        <div className="w-px h-6 bg-white/[0.06]" />
+
+                        {/* Podcast Controls */}
+                        {activeNote.podcastScript &&
+                        activeNote.podcastScript.length > 0 ? (
+                          <PodcastPlayer
+                            script={activeNote.podcastScript}
+                            audioBase64={activeNote.audioBase64}
+                          />
+                        ) : (
+                          <button
+                            onClick={handleGeneratePodcast}
+                            disabled={isGeneratingPodcast}
+                            className="px-4 py-2 bg-tissue-rose/10 hover:bg-tissue-rose/15 border border-tissue-rose/20 rounded-xl text-tissue-rose text-[10px] font-sans font-semibold uppercase tracking-[0.1em] transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {isGeneratingPodcast ? (
+                              <>
+                                <div className="w-2 h-2 border-2 border-current border-t-transparent rounded-full animate-spin"></div>{" "}
+                                Synthesizing...
+                              </>
+                            ) : (
+                              <>
+                                <Headphones size={12} /> Generate Podcast
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Content + Chat Layout */}
+                    <div className="flex-1 flex overflow-hidden relative bg-[#030406]">
+                      {/* Main Guide Content - Adjusts when chat opens */}
+                      <div
+                        className={`overflow-y-auto scroll-smooth transition-all duration-500 ease-out custom-scrollbar ${
+                          isChatOpen ? "pr-[600px]" : "w-full"
+                        }`}
+                        style={{ flex: 1 }}
+                        onMouseUp={handleTextSelection}
+                      >
+                        <div
+                          className={`relative py-12 transition-all duration-500 ${
+                            isChatOpen
+                              ? "pl-16 pr-12 max-w-5xl"
+                              : "px-10 max-w-4xl mx-auto"
+                          }`}
+                        >
+                          {/* Atmospheric Background - positioned relative to content */}
+                          <div className="absolute top-0 -right-1/4 w-[400px] h-[400px] bg-vital-cyan/[0.015] rounded-full blur-[150px] pointer-events-none z-0" />
+                          <div className="relative z-10">
+                            {showEli5 && activeNote.eli5Analogy && (
+                              <div className="mb-10 p-7 bg-gradient-to-br from-neural-purple/10 to-transparent border border-neural-purple/20 rounded-2xl">
+                                <h3 className="text-neural-purple font-sans font-semibold mb-3 text-[10px] uppercase tracking-[0.15em]">
+                                  Analogy Mode
                                 </h3>
-                                <span className="text-xs px-2 py-0.5 rounded-full bg-clinical-amber/10 text-clinical-amber border border-clinical-amber/20">
-                                  {activeNote.pearls.length} pearls
-                                </span>
+                                <p className="text-gray-200 text-lg font-serif italic leading-relaxed">
+                                  "{activeNote.eli5Analogy}"
+                                </p>
                               </div>
+                            )}
 
-                              {/* Pearl Cards */}
-                              <div className="grid gap-3">
-                                {activeNote.pearls.map((pearl, i) => {
-                                  const pearlConfig = {
-                                    "red-flag": {
-                                      icon: AlertTriangle,
-                                      bg: "bg-gradient-to-r from-red-500/10 to-red-500/5",
-                                      border: "border-red-500/30",
-                                      accent: "bg-red-500",
-                                      text: "text-red-200",
-                                      label: "🚨 RED FLAG",
-                                      labelColor: "text-red-400",
-                                    },
-                                    "exam-tip": {
-                                      icon: GraduationCap,
-                                      bg: "bg-gradient-to-r from-blue-500/10 to-blue-500/5",
-                                      border: "border-blue-500/30",
-                                      accent: "bg-blue-500",
-                                      text: "text-blue-200",
-                                      label: "📝 EXAM TIP",
-                                      labelColor: "text-blue-400",
-                                    },
-                                    "gap-filler": {
-                                      icon: Layers,
-                                      bg: "bg-gradient-to-r from-cyan-500/10 to-cyan-500/5",
-                                      border: "border-cyan-500/30",
-                                      accent: "bg-cyan-500",
-                                      text: "text-cyan-200",
-                                      label: "💡 GAP FILLER",
-                                      labelColor: "text-cyan-400",
-                                    },
-                                    "fact-check": {
-                                      icon: CheckCircle2,
-                                      bg: "bg-gradient-to-r from-amber-500/10 to-amber-500/5",
-                                      border: "border-amber-500/30",
-                                      accent: "bg-amber-500",
-                                      text: "text-amber-200",
-                                      label: "✅ FACT CHECK",
-                                      labelColor: "text-amber-400",
-                                    },
-                                  };
-                                  const config =
-                                    pearlConfig[
-                                      pearl.type as keyof typeof pearlConfig
-                                    ] || pearlConfig["fact-check"];
-                                  const IconComponent = config.icon;
+                            <div className="markdown-content">
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                urlTransform={(url) => url} // Allow custom protocols like node:
+                                components={{
+                                  // Prevent links in headings
+                                  h1: ({ node, children, ...props }) => (
+                                    <h1 {...props}>{children}</h1>
+                                  ),
+                                  h2: ({ node, children, ...props }) => (
+                                    <h2 {...props}>{children}</h2>
+                                  ),
+                                  h3: ({ node, children, ...props }) => (
+                                    <h3 {...props}>{children}</h3>
+                                  ),
+                                  h4: ({ node, children, ...props }) => (
+                                    <h4 {...props}>{children}</h4>
+                                  ),
+                                  h5: ({ node, children, ...props }) => (
+                                    <h5 {...props}>{children}</h5>
+                                  ),
+                                  h6: ({ node, children, ...props }) => (
+                                    <h6 {...props}>{children}</h6>
+                                  ),
+                                  a: ({ node, ...props }) => {
+                                    const href = props.href || "";
 
-                                  return (
-                                    <div
-                                      key={i}
-                                      className={`relative overflow-hidden rounded-xl border ${config.border} ${config.bg} p-4 hover:scale-[1.01] transition-all duration-200`}
-                                    >
-                                      {/* Accent bar */}
-                                      <div
-                                        className={`absolute left-0 top-0 bottom-0 w-1 ${config.accent}`}
-                                      />
+                                    // 🔧 FIXED: Enhanced smart link handler with proper node resolution
+                                    if (href.startsWith("node:")) {
+                                      const nodeId = href.split(":")[1];
+                                      return (
+                                        <span
+                                          className="smart-link"
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
 
-                                      {/* Content */}
-                                      <div className="flex gap-3 pl-2">
-                                        <div
-                                          className={`shrink-0 w-8 h-8 rounded-lg ${config.bg} flex items-center justify-center`}
+                                            // Find node by exact ID match
+                                            const targetNode =
+                                              activeNote.graphData.nodes.find(
+                                                (n) => n.id === nodeId
+                                              );
+
+                                            if (targetNode) {
+                                              setSelectedNode(targetNode);
+                                              setActiveTab("graph");
+                                            }
+                                          }}
+                                          role="button"
+                                          tabIndex={0}
+                                          onKeyDown={(e) => {
+                                            if (
+                                              e.key === "Enter" ||
+                                              e.key === " "
+                                            ) {
+                                              e.preventDefault();
+                                              const targetNode =
+                                                activeNote.graphData.nodes.find(
+                                                  (n) => n.id === nodeId
+                                                );
+                                              if (targetNode) {
+                                                setSelectedNode(targetNode);
+                                                setActiveTab("graph");
+                                              }
+                                            }
+                                          }}
                                         >
-                                          <IconComponent
-                                            className={`w-4 h-4 ${config.labelColor}`}
-                                          />
-                                        </div>
-                                        <div className="flex-1">
+                                          {props.children}
+                                        </span>
+                                      );
+                                    }
+                                    if (href.startsWith("http")) {
+                                      return (
+                                        <a
+                                          {...props}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="inline-flex items-center gap-0.5 text-[0.8em] font-sans font-medium text-gray-500 bg-white/5 px-1.5 py-0.5 rounded border border-white/10 hover:border-clinical-cyan hover:text-clinical-cyan transition-all align-middle mx-1"
+                                        >
+                                          {props.children}{" "}
+                                          <ExternalLink size={8} />
+                                        </a>
+                                      );
+                                    }
+                                    return (
+                                      <span
+                                        className="text-clinical-cyan/80 border-b border-dotted border-clinical-cyan/50 cursor-help"
+                                        title="Reference"
+                                      >
+                                        {props.children}
+                                      </span>
+                                    );
+                                  },
+                                }}
+                              >
+                                {activeNote.markdownContent}
+                              </ReactMarkdown>
+                            </div>
+                          </div>
+
+                          {/* Clinical Pearls - Enhanced Design */}
+                          {activeNote.pearls &&
+                            activeNote.pearls.length > 0 &&
+                            activeNote.markdownContent &&
+                            activeNote.markdownContent.length > 100 && (
+                              <div className="mb-10 mt-16 pt-10 border-t border-white/[0.04]">
+                                {/* Section Header */}
+                                <div className="flex items-center gap-3 mb-6">
+                                  <div className="w-10 h-10 rounded-xl bg-synapse-amber/10 border border-synapse-amber/20 flex items-center justify-center">
+                                    <Sparkles className="w-5 h-5 text-synapse-amber" />
+                                  </div>
+                                  <div>
+                                    <h3 className="text-lg font-sans font-semibold text-serum-white">
+                                      Clinical Pearls
+                                    </h3>
+                                    <span className="text-[10px] font-mono text-synapse-amber/70 tracking-wide">
+                                      {activeNote.pearls.length} high-yield
+                                      insights
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* Pearl Cards */}
+                                <div className="grid gap-4">
+                                  {activeNote.pearls.map((pearl, i) => {
+                                    const pearlConfig = {
+                                      "red-flag": {
+                                        icon: AlertTriangle,
+                                        bg: "bg-gradient-to-r from-tissue-rose/10 to-tissue-rose/[0.02]",
+                                        border: "border-tissue-rose/20",
+                                        accent: "bg-tissue-rose",
+                                        text: "text-red-200",
+                                        label: "🚨 Red Flag",
+                                        labelColor: "text-tissue-rose",
+                                      },
+                                      "exam-tip": {
+                                        icon: GraduationCap,
+                                        bg: "bg-gradient-to-r from-vital-cyan/10 to-vital-cyan/[0.02]",
+                                        border: "border-vital-cyan/20",
+                                        accent: "bg-vital-cyan",
+                                        text: "text-cyan-200",
+                                        label: "📝 Exam Tip",
+                                        labelColor: "text-vital-cyan",
+                                      },
+                                      "gap-filler": {
+                                        icon: Layers,
+                                        bg: "bg-gradient-to-r from-neural-purple/10 to-neural-purple/[0.02]",
+                                        border: "border-neural-purple/20",
+                                        accent: "bg-neural-purple",
+                                        text: "text-purple-200",
+                                        label: "💡 Gap Filler",
+                                        labelColor: "text-neural-purple",
+                                      },
+                                      "fact-check": {
+                                        icon: CheckCircle2,
+                                        bg: "bg-gradient-to-r from-synapse-amber/10 to-synapse-amber/[0.02]",
+                                        border: "border-synapse-amber/20",
+                                        accent: "bg-synapse-amber",
+                                        text: "text-amber-200",
+                                        label: "✅ Fact Check",
+                                        labelColor: "text-synapse-amber",
+                                      },
+                                    };
+                                    const config =
+                                      pearlConfig[
+                                        pearl.type as keyof typeof pearlConfig
+                                      ] || pearlConfig["fact-check"];
+                                    const IconComponent = config.icon;
+
+                                    return (
+                                      <div
+                                        key={i}
+                                        className={`relative overflow-hidden rounded-2xl border ${config.border} ${config.bg} p-5 hover:scale-[1.01] transition-all duration-300`}
+                                      >
+                                        {/* Accent bar */}
+                                        <div
+                                          className={`absolute left-0 top-0 bottom-0 w-1 ${config.accent}`}
+                                        />
+
+                                        {/* Content */}
+                                        <div className="flex gap-4 pl-3">
                                           <div
-                                            className={`text-[10px] font-bold tracking-widest mb-1 ${config.labelColor}`}
+                                            className={`shrink-0 w-9 h-9 rounded-xl ${config.bg} border ${config.border} flex items-center justify-center`}
                                           >
-                                            {config.label}
+                                            <IconComponent
+                                              className={`w-4 h-4 ${config.labelColor}`}
+                                            />
                                           </div>
-                                          <div
-                                            className={`text-sm leading-relaxed ${config.text}`}
-                                          >
-                                            {pearl.content}
+                                          <div className="flex-1">
+                                            <div
+                                              className={`text-[9px] font-sans font-semibold tracking-[0.15em] uppercase mb-2 ${config.labelColor}`}
+                                            >
+                                              {config.label}
+                                            </div>
+                                            <div
+                                              className={`text-sm leading-relaxed font-sans ${config.text}`}
+                                            >
+                                              {pearl.content}
+                                            </div>
                                           </div>
                                         </div>
                                       </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
+                                    );
+                                  })}
+                                </div>
 
-                              {/* Motivational Message */}
-                              {userProfile && (
-                                <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-clinical-purple/10 to-clinical-cyan/10 border border-clinical-purple/20">
-                                  <div className="flex items-start gap-3">
-                                    <div className="shrink-0 w-10 h-10 rounded-full bg-clinical-purple/20 flex items-center justify-center">
-                                      {userProfile.profilePicture ? (
-                                        <img
-                                          src={userProfile.profilePicture}
-                                          alt=""
-                                          className="w-10 h-10 rounded-full object-cover"
-                                        />
-                                      ) : (
-                                        <Sparkles className="w-5 h-5 text-clinical-purple" />
-                                      )}
-                                    </div>
-                                    <div>
-                                      <p className="text-sm text-gray-300 leading-relaxed">
-                                        {isBirthday()
-                                          ? `🎂 Happy Birthday, ${
-                                              userProfile.name
-                                            }! What a gift to yourself—mastering ${
-                                              activeNote?.title || "this topic"
-                                            }. May this year bring you clinical excellence and countless "aha!" moments. Keep shining! 🌟`
-                                          : `Keep pushing, ${
-                                              userProfile.name
-                                            }! Every pearl you absorb today brings you closer to clinical mastery. ${
-                                              userProfile.level?.includes(
-                                                "Student"
-                                              )
-                                                ? "Your dedication as a student will pay off—future patients are counting on brilliant clinicians like you."
-                                                : "Your commitment to learning sets you apart as a true professional."
-                                            } 💪`}
-                                      </p>
-                                      <p className="text-xs text-clinical-cyan/60 mt-1">
-                                        — Your Synapse Med AI Mentor
-                                      </p>
+                                {/* Motivational Message */}
+                                {userProfile && (
+                                  <div className="mt-8 p-6 rounded-2xl glass-slide border border-white/[0.04]">
+                                    <div className="flex items-start gap-4">
+                                      <div className="shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-neural-purple/20 to-vital-cyan/10 border border-neural-purple/20 flex items-center justify-center overflow-hidden">
+                                        {userProfile.profilePicture ? (
+                                          <img
+                                            src={userProfile.profilePicture}
+                                            alt=""
+                                            className="w-12 h-12 object-cover"
+                                          />
+                                        ) : (
+                                          <Sparkles className="w-5 h-5 text-neural-purple" />
+                                        )}
+                                      </div>
+                                      <div className="flex-1">
+                                        <p className="text-sm text-gray-200 leading-relaxed font-sans">
+                                          {isBirthday
+                                            ? `🎂 Happy Birthday, ${
+                                                userProfile.name
+                                              }! What a gift to yourself—mastering ${
+                                                activeNote?.title ||
+                                                "this topic"
+                                              }. May this year bring clinical excellence and countless "aha!" moments. 🌟`
+                                            : `Keep pushing, ${
+                                                userProfile.name
+                                              }! Every pearl you absorb brings you closer to mastery. ${
+                                                userProfile.level?.includes(
+                                                  "Student"
+                                                )
+                                                  ? "Your dedication will pay off—future patients are counting on clinicians like you."
+                                                  : "Your commitment to learning sets you apart as a true professional."
+                                              } 💪`}
+                                        </p>
+                                        <p className="text-[10px] text-vital-cyan/50 mt-2 font-mono tracking-wider">
+                                          — Your Synapse Neural Mentor
+                                        </p>
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                        {activeNote.sources &&
-                          activeNote.sources.length > 0 && (
-                            <div className="mt-16 pt-8 border-t border-glass-border">
-                              <h3 className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase mb-4">
-                                <CheckCircle2
-                                  size={14}
-                                  className="text-clinical-teal"
-                                />{" "}
-                                Verified Sources
-                              </h3>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                {activeNote.sources.map((source, idx) => (
-                                  <a
-                                    key={idx}
-                                    href={source.uri}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex flex-col p-3 bg-white/5 border border-white/5 rounded-lg hover:bg-white/10 transition-all group"
-                                  >
-                                    <span className="text-xs font-medium text-gray-200 truncate group-hover:text-clinical-cyan">
-                                      {source.title}
-                                    </span>
-                                    <span className="text-[10px] text-gray-500 truncate">
-                                      {new URL(source.uri).hostname}
-                                    </span>
-                                  </a>
-                                ))}
+                                )}
                               </div>
-                            </div>
-                          )}
+                            )}
+
+                          {activeNote.sources &&
+                            activeNote.sources.length > 0 && (
+                              <div className="mt-16 pt-10 border-t border-white/[0.04]">
+                                <div className="flex items-center gap-3 mb-6">
+                                  <div className="w-10 h-10 rounded-xl bg-clinical-teal/10 border border-clinical-teal/20 flex items-center justify-center">
+                                    <CheckCircle2
+                                      size={18}
+                                      className="text-clinical-teal"
+                                    />
+                                  </div>
+                                  <div>
+                                    <h3 className="text-base font-sans font-semibold text-serum-white">
+                                      Verified Sources
+                                    </h3>
+                                    <span className="text-[10px] font-mono text-clinical-teal/70 tracking-wide">
+                                      {activeNote.sources.length} references
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                  {activeNote.sources.map((source, idx) => (
+                                    <a
+                                      key={idx}
+                                      href={source.uri}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex flex-col p-4 bg-white/[0.02] border border-white/[0.04] rounded-xl hover:bg-white/[0.04] hover:border-vital-cyan/20 transition-all group"
+                                    >
+                                      <span className="text-xs font-sans font-medium text-gray-200 truncate group-hover:text-vital-cyan transition-colors">
+                                        {source.title}
+                                      </span>
+                                      <span className="text-[10px] text-gray-500 truncate font-mono mt-1">
+                                        {new URL(source.uri).hostname}
+                                      </span>
+                                    </a>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                        </div>
+                      </div>
+
+                      {/* ═══════════════════════════════════════════════════════════════
+                        SLIDING CHAT SIDEBAR - FIXED POSITION
+                        ═══════════════════════════════════════════════════════════════ */}
+                      <div
+                        className={`fixed top-[112px] right-0 bottom-0 bg-[#050607] border-l border-white/[0.04] shadow-[-50px_0_120px_rgba(0,0,0,0.9)] transition-all duration-500 ease-out z-40 ${
+                          isChatOpen
+                            ? "translate-x-0 opacity-100"
+                            : "translate-x-full opacity-0 pointer-events-none"
+                        }`}
+                        style={{ width: "580px" }}
+                      >
+                        {isChatOpen && userProfile && activeNote && (
+                          <ChatInterface
+                            contextMarkdown={activeNote.markdownContent}
+                            userProfile={userProfile}
+                            graphNodes={activeNote.graphData.nodes}
+                            noteTitle={activeNote.title}
+                            noteId={activeNote.id}
+                            initialSelection={selectedText}
+                            onClose={() => {
+                              setIsChatOpen(false);
+                              setSelectedText(null);
+                            }}
+                            onClearSelection={handleClearSelection}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* MODE: NEURAL WEB (FULL SCREEN) */}
+                {activeTab === "graph" && (
+                  <div className="flex-1 flex flex-col relative animate-[fadeIn_0.3s_ease-out] bg-[#030406]">
+                    {/* Toolbar */}
+                    <div className="h-14 border-b border-white/[0.04] flex items-center px-6 bg-[#030406] gap-6 justify-between shrink-0 z-20">
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => setActiveTab("guide")}
+                          className="px-5 py-2 rounded-xl text-xs font-sans font-medium tracking-wide text-gray-500 hover:text-serum-white transition-all hover:bg-white/[0.03] border border-transparent hover:border-white/[0.06]"
+                        >
+                          Master Guide
+                        </button>
+                        <button
+                          onClick={() => setActiveTab("graph")}
+                          className="px-5 py-2 rounded-xl text-xs font-sans font-medium tracking-wide bg-vital-cyan/10 text-vital-cyan border border-vital-cyan/20 transition-all shadow-[0_0_15px_rgba(42,212,212,0.15)]"
+                        >
+                          Neural Web
+                        </button>
+                      </div>
+
+                      {/* Podcast Controls */}
+                      <div className="flex items-center gap-3">
+                        {activeNote.podcastScript &&
+                        activeNote.podcastScript.length > 0 ? (
+                          <PodcastPlayer
+                            script={activeNote.podcastScript}
+                            audioBase64={activeNote.audioBase64}
+                          />
+                        ) : (
+                          <button
+                            onClick={handleGeneratePodcast}
+                            disabled={isGeneratingPodcast}
+                            className="px-4 py-2 bg-tissue-rose/10 hover:bg-tissue-rose/15 border border-tissue-rose/20 rounded-xl text-tissue-rose text-[10px] font-sans font-semibold uppercase tracking-[0.1em] transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {isGeneratingPodcast ? (
+                              <>
+                                <div className="w-2 h-2 border-2 border-current border-t-transparent rounded-full animate-spin"></div>{" "}
+                                Synthesizing...
+                              </>
+                            ) : (
+                              <>
+                                <Headphones size={12} /> Generate Podcast
+                              </>
+                            )}
+                          </button>
+                        )}
                       </div>
                     </div>
 
-                    {/* ═══════════════════════════════════════════════════════════════
-                        SLIDING CHAT SIDEBAR - FIXED POSITION
-                        ═══════════════════════════════════════════════════════════════ */}
-                    <div
-                      className={`fixed top-[104px] right-0 bottom-0 bg-[#08090a] border-l border-white/[0.06] shadow-[-40px_0_100px_rgba(0,0,0,0.8)] transition-all duration-300 ease-out z-40 ${
-                        isChatOpen
-                          ? "translate-x-0 opacity-100"
-                          : "translate-x-full opacity-0 pointer-events-none"
-                      }`}
-                      style={{ width: "580px" }}
-                    >
-                      {isChatOpen && userProfile && activeNote && (
-                        <ChatInterface
-                          contextMarkdown={activeNote.markdownContent}
-                          userProfile={userProfile}
-                          graphNodes={activeNote.graphData.nodes}
-                          noteTitle={activeNote.title}
-                          noteId={activeNote.id}
-                          initialSelection={selectedText}
-                          onClose={() => {
-                            setIsChatOpen(false);
-                            setSelectedText(null);
-                          }}
-                          onClearSelection={handleClearSelection}
-                        />
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
+                    <div className="flex-1 relative bg-transparent overflow-hidden">
+                      {/* Atmospheric glow */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-vital-cyan/[0.02] via-transparent to-neural-purple/[0.02] pointer-events-none" />
 
-              {/* MODE: NEURAL WEB (FULL SCREEN) */}
-              {activeTab === "graph" && (
-                <div className="flex-1 flex flex-col relative animate-[fadeIn_0.3s_ease-out]">
-                  {/* Toolbar */}
-                  <div className="h-12 border-b border-glass-border flex items-center px-4 bg-charcoal/20 gap-4 justify-between shrink-0 backdrop-blur-sm z-20">
-                    <div className="flex gap-4">
-                      <button
-                        onClick={() => setActiveTab("guide")}
-                        className="px-4 py-1.5 rounded-full text-xs font-medium text-gray-400 hover:text-white transition-all hover:bg-white/5"
-                      >
-                        Master Guide
-                      </button>
-                      <button
-                        onClick={() => setActiveTab("graph")}
-                        className="px-4 py-1.5 rounded-full text-xs font-medium bg-clinical-cyan text-black transition-all shadow-[0_0_10px_rgba(6,182,212,0.3)]"
-                      >
-                        Neural Web
-                      </button>
-                    </div>
-
-                    {/* Podcast Controls */}
-                    <div className="flex items-center gap-2">
-                      {activeNote.podcastScript &&
-                      activeNote.podcastScript.length > 0 ? (
-                        <PodcastPlayer
-                          script={activeNote.podcastScript}
-                          audioBase64={activeNote.audioBase64}
-                        />
-                      ) : (
-                        <button
-                          onClick={handleGeneratePodcast}
-                          disabled={isGeneratingPodcast}
-                          className="px-3 py-1.5 bg-clinical-rose/10 hover:bg-clinical-rose/20 border border-clinical-rose/30 rounded-lg text-clinical-rose text-[10px] font-bold transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                        >
-                          {isGeneratingPodcast ? (
-                            <>
-                              <div className="w-2 h-2 border-2 border-current border-t-transparent rounded-full animate-spin"></div>{" "}
-                              SYNTHESIZING...
-                            </>
-                          ) : (
-                            <>
-                              <Headphones size={12} /> GENERATE PODCAST
-                            </>
-                          )}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex-1 relative bg-black/20 overflow-hidden">
-                    {/* 🆕 Show warning banner if markdown is still generating */}
-                    {!isMarkdownComplete &&
-                      status === ProcessingStatus.WRITING_GUIDE && (
-                        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 animate-[fadeIn_0.3s_ease-out]">
-                          <div className="flex items-center gap-3 px-5 py-3 bg-clinical-amber/10 border border-clinical-amber/30 rounded-xl backdrop-blur-md shadow-lg">
-                            <div className="flex gap-1">
-                              {[0, 1, 2].map((i) => (
-                                <div
-                                  key={i}
-                                  className="w-1.5 h-1.5 bg-clinical-amber rounded-full animate-bounce"
-                                  style={{ animationDelay: `${i * 0.15}s` }}
-                                />
-                              ))}
+                      {/* 🆕 Show warning banner if markdown is still generating */}
+                      {!isMarkdownComplete &&
+                        status === ProcessingStatus.WRITING_GUIDE && (
+                          <div className="absolute top-6 left-1/2 -translate-x-1/2 z-30 animate-[fadeIn_0.3s_ease-out]">
+                            <div className="flex items-center gap-3 px-6 py-3 glass-slide border border-synapse-amber/20 rounded-2xl shadow-2xl">
+                              <div className="flex gap-1">
+                                {[0, 1, 2].map((i) => (
+                                  <div
+                                    key={i}
+                                    className="w-1.5 h-1.5 bg-synapse-amber rounded-full animate-bounce"
+                                    style={{ animationDelay: `${i * 0.15}s` }}
+                                  />
+                                ))}
+                              </div>
+                              <span className="text-sm text-synapse-amber font-sans font-medium">
+                                Master Guide is being synthesized...
+                              </span>
+                              <span className="text-[10px] text-gray-500 font-mono">
+                                ({(markdownProgress / 1000).toFixed(1)}K chars)
+                              </span>
                             </div>
-                            <span className="text-sm text-clinical-amber font-medium">
-                              Master Guide is being synthesized...
-                            </span>
-                            <span className="text-xs text-gray-400 font-mono">
-                              ({(markdownProgress / 1000).toFixed(1)}K chars)
-                            </span>
                           </div>
+                        )}
+
+                      {/* D3 knowledge graph component */}
+                      <KnowledgeGraph
+                        data={activeNote.graphData}
+                        onNodeSelect={(node) => setSelectedNode(node)}
+                        selectedNodeId={selectedNode?.id}
+                        inspectorOpen={selectedNode !== null}
+                        className="w-full h-full"
+                      />
+
+                      {/* Floating instruction text */}
+                      {!selectedNode && (
+                        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 glass-slide border border-white/[0.06] px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-4 animate-[fadeInUp_0.5s_ease-out_1s_both] pointer-events-none">
+                          <div className="w-2.5 h-2.5 rounded-full bg-vital-cyan animate-pulse shadow-[0_0_15px_rgba(42,212,212,0.5)]"></div>
+                          <span className="text-xs font-sans font-medium text-gray-200 tracking-wide">
+                            {!isMarkdownComplete &&
+                            status === ProcessingStatus.WRITING_GUIDE
+                              ? "Graph ready • Guide still synthesizing in background"
+                              : "Select a node to unlock deep clinical insights"}
+                          </span>
                         </div>
                       )}
 
-                    {/* D3 knowledge graph component */}
-                    <KnowledgeGraph
-                      data={activeNote.graphData}
-                      onNodeSelect={(node) => setSelectedNode(node)}
-                      selectedNodeId={selectedNode?.id}
-                      inspectorOpen={selectedNode !== null}
-                      className="w-full h-full"
-                    />
-
-                    {/* Floating instruction text */}
-                    {!selectedNode && (
-                      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-md border border-white/10 px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 animate-[fadeInUp_0.5s_ease-out_1s_both] pointer-events-none">
-                        <div className="w-2 h-2 rounded-full bg-clinical-cyan animate-pulse"></div>
-                        <span className="text-xs font-medium text-gray-300 tracking-wide">
-                          {!isMarkdownComplete &&
-                          status === ProcessingStatus.WRITING_GUIDE
-                            ? "Graph ready • Guide still synthesizing in background"
-                            : "Select a node to unlock deep clinical insights"}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Node inspector panel for selected node */}
-                    <NodeInspector
-                      node={selectedNode}
-                      graphData={activeNote.graphData}
-                      onClose={() => setSelectedNode(null)}
-                      onNodeClick={(nodeId) => {
-                        const node = activeNote.graphData.nodes.find(
-                          (n) => n.id === nodeId
-                        );
-                        if (node) setSelectedNode(node);
-                      }}
-                    />
+                      {/* Node inspector panel for selected node */}
+                      <NodeInspector
+                        node={selectedNode}
+                        graphData={activeNote.graphData}
+                        onClose={() => setSelectedNode(null)}
+                        onNodeClick={(nodeId) => {
+                          const node = activeNote.graphData.nodes.find(
+                            (n) => n.id === nodeId
+                          );
+                          if (node) setSelectedNode(node);
+                        }}
+                      />
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
-        )}
-      </main>
-    </div>
+          )}
+        </main>
+      </div>
+    </>
   );
 };
 

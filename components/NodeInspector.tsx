@@ -97,7 +97,7 @@ const NodeInspector: React.FC<Props> = ({
     };
     return (
       colors[group] || {
-        text: "text-gray-400",
+        text: "text-gray-300",
         border: "border-gray-400",
         bg: "bg-gray-400",
         hex: "#9ca3af",
@@ -162,7 +162,7 @@ const NodeInspector: React.FC<Props> = ({
 
   return (
     <div className="fixed inset-y-0 right-0 w-[520px] z-30 animate-[slideInRight_0.35s_cubic-bezier(0.16,1,0.3,1)] pointer-events-none">
-      <div className="h-full bg-gradient-to-b from-[#0d0e12] via-[#0a0b0e] to-[#08090c] backdrop-blur-3xl border-l border-white/[0.06] shadow-[-40px_0_80px_rgba(0,0,0,0.7)] flex flex-col pointer-events-auto relative">
+      <div className="h-full bg-[#030406] backdrop-blur-3xl border-l border-white/[0.06] shadow-[-40px_0_80px_rgba(0,0,0,0.9)] flex flex-col pointer-events-auto relative">
         {/* Accent glow */}
         <div
           className="absolute -top-20 -right-20 w-80 h-80 rounded-full opacity-30 blur-3xl pointer-events-none"
@@ -184,7 +184,7 @@ const NodeInspector: React.FC<Props> = ({
             </div>
             <button
               onClick={onClose}
-              className="p-2 text-gray-500 hover:text-white hover:bg-white/5 rounded-lg transition-all"
+              className="p-2 text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-all"
             >
               <X size={16} />
             </button>
@@ -195,7 +195,7 @@ const NodeInspector: React.FC<Props> = ({
           </h2>
 
           {node.description && (
-            <p className="text-sm text-gray-400 leading-relaxed">
+            <p className="text-sm text-gray-200 leading-relaxed">
               {node.description}
             </p>
           )}
@@ -203,11 +203,11 @@ const NodeInspector: React.FC<Props> = ({
           {/* Synonyms */}
           {node.synonyms && node.synonyms.length > 0 && (
             <div className="flex items-center gap-2 mt-3 flex-wrap">
-              <Tag size={10} className="text-gray-500" />
+              <Tag size={10} className="text-gray-300" />
               {node.synonyms.map((syn, i) => (
                 <span
                   key={i}
-                  className="text-[10px] px-2 py-0.5 bg-white/5 border border-white/10 rounded text-gray-400"
+                  className="text-[10px] px-2 py-0.5 bg-white/5 border border-white/10 rounded text-gray-200"
                 >
                   {syn}
                 </span>
@@ -231,7 +231,7 @@ const NodeInspector: React.FC<Props> = ({
               </span>
               <span className="text-xl font-mono font-light text-white">
                 {node.val}
-                <span className="text-xs text-gray-600">/20</span>
+                <span className="text-xs text-gray-500">/20</span>
               </span>
             </div>
             <div>
@@ -240,7 +240,7 @@ const NodeInspector: React.FC<Props> = ({
               </span>
               <button
                 onClick={() => handleCopy(node.id, node.id)}
-                className="flex items-center gap-1 text-[10px] font-mono text-gray-400 hover:text-white transition-all"
+                className="flex items-center gap-1 text-[10px] font-mono text-gray-200 hover:text-white transition-all"
               >
                 {copiedId === node.id ? (
                   <Check size={10} className="text-green-500" />
@@ -266,7 +266,7 @@ const NodeInspector: React.FC<Props> = ({
               className={`flex items-center gap-1.5 px-4 py-3 text-[10px] font-bold uppercase tracking-wider border-b-2 transition-all ${
                 activeSection === tab.id
                   ? `${colors.text} border-current`
-                  : "text-gray-500 border-transparent hover:text-gray-300"
+                  : "text-gray-300 border-transparent hover:text-gray-200"
               }`}
             >
               <tab.icon size={12} />
@@ -297,11 +297,11 @@ const NodeInspector: React.FC<Props> = ({
               {/* Details */}
               {node.details && (
                 <div className="space-y-3">
-                  <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2 pb-2 border-b border-white/[0.06]">
+                  <h3 className="text-[10px] font-bold text-gray-300 uppercase tracking-widest flex items-center gap-2 pb-2 border-b border-white/[0.06]">
                     <Microscope size={12} className="text-clinical-cyan" />
                     In-Depth Analysis
                   </h3>
-                  <div className="prose prose-sm prose-invert max-w-none text-gray-300 text-[14px] leading-relaxed">
+                  <div className="prose prose-sm prose-invert max-w-none text-gray-200 text-[14px] leading-relaxed">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
@@ -322,7 +322,7 @@ const NodeInspector: React.FC<Props> = ({
                           </ul>
                         ),
                         li: ({ children }) => (
-                          <li className="text-gray-300">{children}</li>
+                          <li className="text-gray-200">{children}</li>
                         ),
                       }}
                     >
@@ -391,7 +391,7 @@ const NodeInspector: React.FC<Props> = ({
                           </div>
                           <ChevronRight
                             size={14}
-                            className="text-gray-600 group-hover:text-white opacity-0 group-hover:opacity-100 transition-all"
+                            className="text-gray-500 group-hover:text-white opacity-0 group-hover:opacity-100 transition-all"
                           />
                         </button>
                       );
@@ -436,7 +436,7 @@ const NodeInspector: React.FC<Props> = ({
                           </div>
                           <ChevronRight
                             size={14}
-                            className="text-gray-600 group-hover:text-white opacity-0 group-hover:opacity-100 transition-all"
+                            className="text-gray-500 group-hover:text-white opacity-0 group-hover:opacity-100 transition-all"
                           />
                         </button>
                       );
@@ -489,7 +489,7 @@ const NodeInspector: React.FC<Props> = ({
                 className="flex items-center gap-4 p-4 rounded-lg bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.05] transition-all group"
               >
                 <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center">
-                  <FileText size={18} className="text-gray-400" />
+                  <FileText size={18} className="text-gray-300" />
                 </div>
                 <div className="flex-1">
                   <div className="text-sm font-medium text-white">UpToDate</div>
@@ -509,7 +509,7 @@ const NodeInspector: React.FC<Props> = ({
                 className="flex items-center gap-4 p-4 rounded-lg bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.05] transition-all group"
               >
                 <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center">
-                  <Microscope size={18} className="text-gray-400" />
+                  <Microscope size={18} className="text-gray-300" />
                 </div>
                 <div className="flex-1">
                   <div className="text-sm font-medium text-white">
@@ -532,7 +532,7 @@ const NodeInspector: React.FC<Props> = ({
                 className="flex items-center gap-4 p-4 rounded-lg bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.05] transition-all group"
               >
                 <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center">
-                  <Search size={18} className="text-gray-400" />
+                  <Search size={18} className="text-gray-300" />
                 </div>
                 <div className="flex-1">
                   <div className="text-sm font-medium text-white">

@@ -151,17 +151,39 @@ const ThinkingIndicator: React.FC<{ thinkingText?: string }> = memo(
     const [displayedText, setDisplayedText] = useState("");
     const [isTyping, setIsTyping] = useState(false);
     const thoughtContainerRef = useRef<HTMLDivElement>(null);
-    const typingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const typingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
+      null
+    );
+    const dotsIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    // Cleanup all intervals on unmount
+    useEffect(() => {
+      return () => {
+        if (typingIntervalRef.current) {
+          clearInterval(typingIntervalRef.current);
+          typingIntervalRef.current = null;
+        }
+        if (dotsIntervalRef.current) {
+          clearInterval(dotsIntervalRef.current);
+          dotsIntervalRef.current = null;
+        }
+      };
+    }, []);
 
     // Animated dots for header - optimized with cleanup
     useEffect(() => {
-      const interval = setInterval(() => {
+      dotsIntervalRef.current = setInterval(() => {
         setDots((prev) => (prev.length >= 3 ? "" : prev + "."));
       }, 400);
-      return () => clearInterval(interval);
+      return () => {
+        if (dotsIntervalRef.current) {
+          clearInterval(dotsIntervalRef.current);
+          dotsIntervalRef.current = null;
+        }
+      };
     }, []);
 
-    // Typewriter effect for thinking text
+    // Typewriter effect for thinking text (optimized)
     useEffect(() => {
       if (!thinkingText || !thinkingText.trim()) return;
 
@@ -173,6 +195,7 @@ const ThinkingIndicator: React.FC<{ thinkingText?: string }> = memo(
       // Clear any existing typing animation
       if (typingIntervalRef.current) {
         clearInterval(typingIntervalRef.current);
+        typingIntervalRef.current = null;
       }
 
       setIsTyping(true);
@@ -187,67 +210,74 @@ const ThinkingIndicator: React.FC<{ thinkingText?: string }> = memo(
         setDisplayedText("");
       }
 
+      // Faster typing: 5 chars at 10ms
       typingIntervalRef.current = setInterval(() => {
         if (charIndex < thinkingText.length) {
-          setDisplayedText(thinkingText.substring(0, charIndex + 3));
-          charIndex += 3;
+          setDisplayedText(thinkingText.substring(0, charIndex + 5));
+          charIndex += 5;
         } else {
           setDisplayedText(thinkingText);
           setIsTyping(false);
           if (typingIntervalRef.current) {
             clearInterval(typingIntervalRef.current);
+            typingIntervalRef.current = null;
           }
         }
-      }, 15);
+      }, 10);
 
       return () => {
         if (typingIntervalRef.current) {
           clearInterval(typingIntervalRef.current);
+          typingIntervalRef.current = null;
         }
       };
     }, [thinkingText]);
 
-    // Auto-scroll to bottom of thinking content
+    // Auto-scroll to bottom of thinking content (throttled with RAF)
     useEffect(() => {
       if (thoughtContainerRef.current && isExpanded) {
-        thoughtContainerRef.current.scrollTop =
-          thoughtContainerRef.current.scrollHeight;
+        requestAnimationFrame(() => {
+          if (thoughtContainerRef.current) {
+            thoughtContainerRef.current.scrollTop =
+              thoughtContainerRef.current.scrollHeight;
+          }
+        });
       }
     }, [displayedText, isExpanded]);
 
     return (
       <div className="flex items-start gap-3 group">
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-500/20 to-teal-500/10 border border-cyan-500/20 flex items-center justify-center shrink-0 relative">
-          <Brain size={16} className="text-cyan-400 animate-pulse" />
+        <div className="w-9 h-9 rounded-xl bg-vital-cyan/10 border border-vital-cyan/20 flex items-center justify-center shrink-0 relative">
+          <Brain size={16} className="text-vital-cyan animate-pulse" />
           {/* Animated glow ring */}
-          <div className="absolute inset-0 rounded-xl border-2 border-cyan-400/30 animate-ping" />
+          <div className="absolute inset-0 rounded-xl border-2 border-vital-cyan/20 animate-ping" />
         </div>
-        <div className="flex-1 bg-gradient-to-br from-[#0a0b0d] to-[#0f1012] border-2 border-cyan-500/20 rounded-2xl rounded-tl-sm overflow-hidden shadow-lg shadow-cyan-500/5 relative">
+        <div className="flex-1 glass-slide border-2 border-vital-cyan/20 rounded-2xl rounded-tl-sm overflow-hidden shadow-[0_0_40px_rgba(42,212,212,0.1)] relative">
           {/* Animated gradient border effect */}
-          <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-teal-500/10 to-cyan-500/10 opacity-50 animate-pulse pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-r from-vital-cyan/5 via-neural-purple/5 to-vital-cyan/5 opacity-50 animate-pulse pointer-events-none" />
 
           <div className="relative">
             {/* Header */}
             <div
-              className="px-4 py-2.5 border-b border-cyan-500/10 bg-cyan-500/[0.03] flex items-center justify-between cursor-pointer hover:bg-cyan-500/[0.05] transition-colors"
+              className="px-4 py-3 border-b border-vital-cyan/10 bg-vital-cyan/[0.03] flex items-center justify-between cursor-pointer hover:bg-vital-cyan/[0.05] transition-colors"
               onClick={() => thinkingText && setIsExpanded(!isExpanded)}
             >
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 <div className="flex gap-1">
                   {[0, 1, 2].map((i) => (
                     <div
                       key={i}
-                      className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce"
+                      className="w-1.5 h-1.5 bg-vital-cyan rounded-full animate-bounce"
                       style={{ animationDelay: `${i * 150}ms` }}
                     />
                   ))}
                 </div>
-                <span className="text-cyan-400 text-xs font-semibold tracking-wide">
+                <span className="text-vital-cyan text-xs font-sans font-semibold tracking-wide">
                   Thinking{dots}
                 </span>
               </div>
               {thinkingText && (
-                <button className="text-[10px] text-cyan-500/70 hover:text-cyan-400 transition-colors flex items-center gap-1">
+                <button className="text-[10px] text-vital-cyan/60 hover:text-vital-cyan transition-colors flex items-center gap-1 font-sans">
                   {isExpanded ? "Hide" : "Show"}
                   <svg
                     className={`w-3 h-3 transition-transform ${
@@ -277,19 +307,19 @@ const ThinkingIndicator: React.FC<{ thinkingText?: string }> = memo(
               >
                 <div
                   ref={thoughtContainerRef}
-                  className="text-zinc-400 text-[11px] leading-relaxed font-mono bg-black/20 rounded-lg p-3 border border-white/5 max-h-80 overflow-y-auto custom-scrollbar"
+                  className="text-gray-200 text-[11px] leading-relaxed font-mono bg-bio-deep/50 rounded-xl p-4 border border-white/[0.04] max-h-80 overflow-y-auto custom-scrollbar"
                 >
                   {displayedText}
                   {isTyping && (
-                    <span className="inline-block w-1.5 h-3 bg-cyan-400 ml-0.5 animate-pulse" />
+                    <span className="inline-block w-1.5 h-3 bg-vital-cyan ml-0.5 animate-pulse" />
                   )}
                 </div>
               </div>
             )}
 
             {/* Progress bar */}
-            <div className="h-0.5 bg-cyan-500/20 relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-400 to-transparent animate-shimmer" />
+            <div className="h-0.5 bg-vital-cyan/10 relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-vital-cyan to-transparent animate-shimmer" />
             </div>
           </div>
         </div>
@@ -390,7 +420,7 @@ const QuizCard: React.FC<{
                     ? isSubmitted
                       ? "bg-gradient-to-br from-cyan-400 to-teal-500 border-cyan-400 text-black shadow-lg shadow-cyan-400/30"
                       : "bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-md shadow-cyan-500/20"
-                    : "border-zinc-600 text-zinc-500 group-hover/opt:border-zinc-500 group-hover/opt:text-zinc-400"
+                    : "border-zinc-500 text-zinc-300 group-hover/opt:border-zinc-400 group-hover/opt:text-zinc-300"
                 }`}
               >
                 {opt.label}
@@ -401,7 +431,7 @@ const QuizCard: React.FC<{
                 className={`flex-1 text-[13px] leading-[1.65] transition-colors duration-300 ${
                   selectedAnswer === opt.label
                     ? "text-zinc-200"
-                    : "text-zinc-400 group-hover/opt:text-zinc-300"
+                    : "text-zinc-300 group-hover/opt:text-zinc-200"
                 }`}
               >
                 {opt.text}
@@ -416,7 +446,7 @@ const QuizCard: React.FC<{
             <button
               onClick={onIDK}
               disabled={isLoading}
-              className="group/idk flex-1 py-3 rounded-xl font-medium text-[13px] bg-gradient-to-br from-zinc-800/80 to-zinc-900/60 border border-zinc-700/50 text-zinc-400 hover:bg-zinc-700/60 hover:text-zinc-300 hover:border-zinc-600/50 transition-all duration-300 flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-zinc-900/50 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
+              className="group/idk flex-1 py-3 rounded-xl font-medium text-[13px] bg-gradient-to-br from-zinc-800/80 to-zinc-900/60 border border-zinc-700/50 text-zinc-300 hover:bg-zinc-700/60 hover:text-zinc-200 hover:border-zinc-600/50 transition-all duration-300 flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-zinc-900/50 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.02] to-transparent opacity-0 group-hover/idk:opacity-100 transition-opacity duration-500" />
               <HelpCircle size={14} className="relative" />
@@ -428,7 +458,7 @@ const QuizCard: React.FC<{
               className={`group/submit flex-1 py-3 rounded-xl font-medium text-[13px] transition-all duration-300 flex items-center justify-center gap-2 relative overflow-hidden ${
                 selectedAnswer && !isLoading
                   ? "bg-gradient-to-r from-cyan-500 to-teal-500 text-black hover:shadow-xl hover:shadow-cyan-500/30 hover:scale-[1.02] active:scale-[0.98]"
-                  : "bg-zinc-800/80 text-zinc-600 cursor-not-allowed border border-zinc-700/30"
+                  : "bg-zinc-800/80 text-zinc-500 cursor-not-allowed border border-zinc-700/30"
               }`}
             >
               {selectedAnswer && !isLoading && (
@@ -496,10 +526,20 @@ const MessageBubble: React.FC<{
   const [copied, setCopied] = useState(false);
   const [displayedText, setDisplayedText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const typingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const typingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isUser = message.role === "user";
 
-  // Typewriter effect for AI responses
+  // Cleanup interval on unmount
+  useEffect(() => {
+    return () => {
+      if (typingIntervalRef.current) {
+        clearInterval(typingIntervalRef.current);
+        typingIntervalRef.current = null;
+      }
+    };
+  }, []);
+
+  // Typewriter effect for AI responses (optimized)
   useEffect(() => {
     if (isUser || !message.text || message.isThinking) return;
 
@@ -512,28 +552,32 @@ const MessageBubble: React.FC<{
     // Clear any existing typing animation
     if (typingIntervalRef.current) {
       clearInterval(typingIntervalRef.current);
+      typingIntervalRef.current = null;
     }
 
     setIsTyping(true);
     let charIndex = 0;
 
+    // Faster typing speed (4 chars at a time, 8ms interval)
     typingIntervalRef.current = setInterval(() => {
       if (charIndex < message.text.length) {
-        setDisplayedText(message.text.substring(0, charIndex + 2));
-        charIndex += 2;
+        setDisplayedText(message.text.substring(0, charIndex + 4));
+        charIndex += 4;
       } else {
         setDisplayedText(message.text);
         setIsTyping(false);
         markMessageAsAnimated(message.id); // Mark this message as animated
         if (typingIntervalRef.current) {
           clearInterval(typingIntervalRef.current);
+          typingIntervalRef.current = null;
         }
       }
-    }, 12);
+    }, 8);
 
     return () => {
       if (typingIntervalRef.current) {
         clearInterval(typingIntervalRef.current);
+        typingIntervalRef.current = null;
       }
     };
   }, [
@@ -582,7 +626,7 @@ const MessageBubble: React.FC<{
   if (message.isSystemMessage) {
     return (
       <div className="flex justify-center py-3">
-        <div className="bg-zinc-800/40 text-zinc-400 text-xs px-5 py-2.5 rounded-xl border border-zinc-700/40 max-w-[85%] text-center shadow-sm">
+        <div className="bg-zinc-800/40 text-zinc-300 text-xs px-5 py-2.5 rounded-xl border border-zinc-700/40 max-w-[85%] text-center shadow-sm">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
@@ -735,7 +779,7 @@ const MessageBubble: React.FC<{
                     </strong>
                   ),
                   em: ({ children }) => (
-                    <em className="text-zinc-400">{children}</em>
+                    <em className="text-zinc-300">{children}</em>
                   ),
                   ul: ({ children }) => (
                     <ul className="list-none space-y-2 my-3 pl-0">
@@ -753,7 +797,7 @@ const MessageBubble: React.FC<{
                     </li>
                   ),
                   blockquote: ({ children }) => (
-                    <blockquote className="border-l-2 border-cyan-500/30 pl-3 my-2.5 italic text-zinc-400 bg-cyan-500/[0.02] py-1.5 rounded-r">
+                    <blockquote className="border-l-2 border-cyan-500/30 pl-3 my-2.5 italic text-zinc-300 bg-cyan-500/[0.02] py-1.5 rounded-r">
                       {children}
                     </blockquote>
                   ),
@@ -896,7 +940,7 @@ const MessageBubble: React.FC<{
                     </th>
                   ),
                   td: ({ children }) => (
-                    <td className="px-2.5 py-1.5 border-b border-white/5 text-zinc-400">
+                    <td className="px-2.5 py-1.5 border-b border-white/5 text-zinc-300">
                       {children}
                     </td>
                   ),
@@ -967,7 +1011,7 @@ const MessageBubble: React.FC<{
               {onExitQuiz && (
                 <button
                   onClick={onExitQuiz}
-                  className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800/60 border border-zinc-700/40 hover:border-zinc-600/50 text-zinc-400 hover:text-zinc-300 text-[11px] font-medium transition-all duration-200"
+                  className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800/60 border border-zinc-700/40 hover:border-zinc-600/50 text-zinc-300 hover:text-zinc-300 text-[11px] font-medium transition-all duration-200"
                 >
                   <MessageCircle size={12} />
                   <span>Explore More</span>
@@ -1001,20 +1045,20 @@ const ModeSelector: React.FC<{
 
   return (
     <div className="relative">
-      <div className="flex gap-1 overflow-x-auto no-scrollbar">
+      <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
         {modes.map(({ id, icon: Icon, label }) => (
           <button
             key={id}
             onClick={() => onModeChange(id)}
             onMouseEnter={() => setHoveredMode(id)}
             onMouseLeave={() => setHoveredMode(null)}
-            className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all whitespace-nowrap ${
+            className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-sans font-medium transition-all duration-300 whitespace-nowrap ${
               mode === id
-                ? "bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 shadow-[0_0_12px_rgba(6,182,212,0.15)]"
-                : "text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04] border border-transparent"
+                ? "bg-vital-cyan/10 text-vital-cyan border border-vital-cyan/20 shadow-[0_0_20px_rgba(42,212,212,0.15)]"
+                : "text-gray-500 hover:text-serum-white hover:bg-white/[0.03] border border-transparent hover:border-white/[0.06]"
             }`}
           >
-            <Icon size={12} />
+            <Icon size={13} />
             {label}
           </button>
         ))}
@@ -1022,19 +1066,19 @@ const ModeSelector: React.FC<{
 
       {/* Tooltip */}
       {hoveredMode && (
-        <div className="absolute top-full left-0 right-0 mt-2 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
-          <div className="bg-[#0a0b0c] border border-white/[0.08] rounded-xl p-3 shadow-2xl shadow-black/50">
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="text-cyan-400 font-semibold text-xs">
+        <div className="absolute top-full left-0 right-0 mt-3 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+          <div className="glass-slide border border-white/[0.06] rounded-2xl p-4 shadow-2xl">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-vital-cyan font-sans font-semibold text-xs">
                 {MODE_INFO[hoveredMode].title}
               </span>
             </div>
-            <p className="text-zinc-400 text-[11px] leading-relaxed mb-2">
+            <p className="text-gray-300 text-[11px] font-sans leading-relaxed mb-2">
               {MODE_INFO[hoveredMode].description}
             </p>
-            <div className="flex items-center gap-1.5 text-[10px] text-zinc-600">
-              <span className="text-zinc-500">Try:</span>
-              <span className="text-zinc-400 italic">
+            <div className="flex items-center gap-1.5 text-[10px]">
+              <span className="text-gray-300 font-sans">Try:</span>
+              <span className="text-gray-200 italic font-sans">
                 {MODE_INFO[hoveredMode].example}
               </span>
             </div>
@@ -1145,7 +1189,7 @@ const TopicPanel: React.FC<{
                   className={`flex-1 leading-relaxed transition-colors duration-300 ${
                     selected === t.id
                       ? "text-cyan-300 font-medium"
-                      : "text-zinc-400 group-hover/topic:text-zinc-300"
+                      : "text-zinc-300 group-hover/topic:text-zinc-300"
                   }`}
                 >
                   {t.name.replace("📚 ", "")}
@@ -1168,7 +1212,7 @@ const TopicPanel: React.FC<{
                   onClick={() => setIsExpanded(!isExpanded)}
                   aria-expanded={isExpanded}
                   aria-controls="topic-list"
-                  className="w-full text-center py-2.5 px-3 rounded-xl text-xs transition-all duration-300 flex items-center justify-center gap-2 bg-zinc-900/50 border border-zinc-800/50 hover:border-cyan-500/30 hover:bg-cyan-500/[0.05] text-zinc-400 hover:text-cyan-300"
+                  className="w-full text-center py-2.5 px-3 rounded-xl text-xs transition-all duration-300 flex items-center justify-center gap-2 bg-zinc-900/50 border border-zinc-800/50 hover:border-cyan-500/30 hover:bg-cyan-500/[0.05] text-zinc-300 hover:text-cyan-300"
                 >
                   {isExpanded ? (
                     <>
@@ -1190,7 +1234,7 @@ const TopicPanel: React.FC<{
 
           {/* Footer hint */}
           <div className="relative px-4 py-2.5 border-t border-white/[0.03] bg-black/20">
-            <p className="text-[9px] text-zinc-600 text-center italic">
+            <p className="text-[9px] text-zinc-500 text-center italic">
               Click any topic to generate a challenging question
             </p>
           </div>
@@ -1412,7 +1456,8 @@ const ChatInterface: React.FC<Props> = ({
     []
   );
 
-  // ═══ PERSISTENCE ═══
+  // ═══ PERSISTENCE (debounced to prevent lag) ═══
+  // Load saved chat on mount
   useEffect(() => {
     const saved = localStorage.getItem(getChatStorageKey(effectiveNoteId));
     if (saved) {
@@ -1436,30 +1481,56 @@ const ChatInterface: React.FC<Props> = ({
     }
   }, [effectiveNoteId]);
 
+  // Debounced save to localStorage (500ms delay to batch rapid updates)
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (messages.length > 0) {
+    if (messages.length === 0) return;
+
+    // Clear any pending save
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Debounce: wait 500ms after last change before saving
+    saveTimeoutRef.current = setTimeout(() => {
+      const messagesToSave = messages.filter((m) => !m.isThinking);
       localStorage.setItem(
         getChatStorageKey(effectiveNoteId),
         JSON.stringify({
-          messages: messages.filter((m) => !m.isThinking),
+          messages: messagesToSave,
           mode,
           lastUpdated: Date.now(),
         })
       );
-    }
+    }, 500);
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
   }, [messages, mode, effectiveNoteId]);
 
-  // ═══ EXTRACT TOPICS ═══
+  // ═══ EXTRACT TOPICS (only once when markdown changes) ═══
   useEffect(() => {
     if (contextMarkdown) {
-      setQuizTopics(chatService.extractTopicsFromContent(contextMarkdown));
+      // Run in next tick to not block render
+      const timeoutId = setTimeout(() => {
+        setQuizTopics(chatService.extractTopicsFromContent(contextMarkdown));
+      }, 0);
+      return () => clearTimeout(timeoutId);
     }
   }, [contextMarkdown]);
 
-  // ═══ AUTO-SCROLL ═══
+  // ═══ AUTO-SCROLL (debounced) ═══
+  const lastScrollRef = useRef<number>(0);
   useEffect(() => {
+    const now = Date.now();
+    // Throttle scrolling to max once per 150ms
+    if (now - lastScrollRef.current < 150) return;
+    lastScrollRef.current = now;
     scrollToBottom("smooth", 100);
-  }, [messages, isLoading, scrollToBottom]);
+  }, [messages.length, isLoading, scrollToBottom]);
 
   // Watch simulation completion in messages. When the service outputs the explicit
   // "SIMULATION COMPLETE" game-over phrase, clear the simulationActive flag so
@@ -2502,36 +2573,37 @@ const ChatInterface: React.FC<Props> = ({
   // ═══════════════════════════════════════════════════════════
 
   return (
-    <div className="flex flex-col h-full bg-[#08090a] relative overflow-hidden">
-      {/* Ambient */}
-      <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/[0.02] rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-48 h-48 bg-teal-500/[0.015] rounded-full blur-3xl pointer-events-none" />
+    <div className="flex flex-col h-full bg-[#030406] relative overflow-hidden">
+      {/* Atmospheric Ambient Layers */}
+      <div className="absolute top-0 right-0 w-96 h-96 bg-vital-cyan/[0.015] rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-64 h-64 bg-neural-purple/[0.02] rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-vital-cyan/[0.01] rounded-full blur-[200px] pointer-events-none" />
 
       {/* ═══ HEADER ═══ */}
-      <div className="h-12 border-b border-white/[0.04] flex items-center justify-between px-4 bg-white/[0.01] backdrop-blur-xl z-10 shrink-0">
-        <div className="flex items-center gap-2.5">
+      <div className="h-14 border-b border-white/[0.04] flex items-center justify-between px-5 glass-slide z-10 shrink-0">
+        <div className="flex items-center gap-3">
           <div className="relative">
-            <div className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.5)]" />
-            <div className="absolute inset-0 w-2 h-2 rounded-full bg-cyan-400 animate-ping opacity-30" />
+            <div className="w-2.5 h-2.5 rounded-full bg-vital-cyan shadow-[0_0_15px_rgba(42,212,212,0.6)]" />
+            <div className="absolute inset-0 w-2.5 h-2.5 rounded-full bg-vital-cyan animate-ping opacity-20" />
           </div>
           <div>
-            <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-zinc-400">
-              Synapse <span className="text-cyan-400">AI</span>
+            <span className="text-xs font-serif font-medium tracking-wide text-serum-white">
+              Synapse <span className="text-vital-cyan">AI</span>
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
           <button
             onClick={handleReset}
-            className="p-1.5 hover:bg-white/[0.04] rounded-lg text-zinc-600 hover:text-zinc-400 transition-colors"
+            className="p-2 hover:bg-white/[0.04] rounded-xl text-gray-500 hover:text-serum-white transition-all duration-300"
             title="Reset"
           >
-            <RotateCcw size={13} />
+            <RotateCcw size={14} />
           </button>
           <button
             onClick={onClose}
-            className="p-1.5 hover:bg-white/[0.04] rounded-lg text-zinc-600 hover:text-white transition-colors"
+            className="p-2 hover:bg-white/[0.04] rounded-xl text-gray-500 hover:text-serum-white transition-all duration-300"
           >
             <X size={14} />
           </button>
@@ -2539,7 +2611,7 @@ const ChatInterface: React.FC<Props> = ({
       </div>
 
       {/* ═══ MODE BAR ═══ */}
-      <div className="px-4 py-2 border-b border-white/[0.03] flex items-center gap-2 bg-white/[0.005]">
+      <div className="px-5 py-3 border-b border-white/[0.04] flex items-center gap-2 bg-bio-deep/30">
         <ModeSelector mode={mode} onModeChange={handleModeChange} />
       </div>
 
@@ -2621,7 +2693,7 @@ const ChatInterface: React.FC<Props> = ({
               </div>
               <div className="flex items-center gap-2">
                 <Loader2 size={14} className="animate-spin text-cyan-400" />
-                <span className="text-sm text-zinc-400">
+                <span className="text-sm text-zinc-300">
                   Extracting quiz topics...
                 </span>
               </div>
@@ -2647,7 +2719,7 @@ const ChatInterface: React.FC<Props> = ({
             </p>
             {userProfile.examGoal &&
               userProfile.examGoal !== "General Knowledge" && (
-                <p className="text-xs text-zinc-600 mb-5">
+                <p className="text-xs text-zinc-500 mb-5">
                   Tailored for{" "}
                   <span className="text-amber-400/80 font-medium">
                     {userProfile.examGoal}
@@ -2664,7 +2736,7 @@ const ChatInterface: React.FC<Props> = ({
             />
 
             {/* Hint */}
-            <div className="mt-6 flex items-center gap-2 text-[10px] text-zinc-600">
+            <div className="mt-6 flex items-center gap-2 text-[10px] text-zinc-500">
               <Info size={11} className="text-zinc-500" />
               <span>Hover over modes above to learn what they do</span>
             </div>
@@ -2716,7 +2788,7 @@ const ChatInterface: React.FC<Props> = ({
                   Selected Text
                 </span>
                 {initialSelection && (
-                  <span className="text-[10px] text-zinc-600">
+                  <span className="text-[10px] text-zinc-500">
                     ({initialSelection.length} chars)
                   </span>
                 )}
@@ -2730,7 +2802,7 @@ const ChatInterface: React.FC<Props> = ({
                     setIsSelectionFading(false);
                   }, 220);
                 }}
-                className="text-zinc-500 hover:text-white p-1 hover:bg-white/5 rounded-lg transition-colors"
+                className="text-zinc-300 hover:text-white p-1 hover:bg-white/5 rounded-lg transition-colors"
               >
                 <X size={12} />
               </button>
@@ -2762,7 +2834,7 @@ const ChatInterface: React.FC<Props> = ({
 
           <button
             onClick={handleCancelSimulation}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-900/60 border border-zinc-800 text-zinc-300 hover:bg-zinc-900/80 hover:text-white transition-colors duration-200 text-xs font-medium"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-900/60 border border-zinc-800 text-zinc-200 hover:bg-zinc-900/80 hover:text-white transition-colors duration-200 text-xs font-medium"
             title="Cancel simulation and return to Tutor"
           >
             <X size={14} />
@@ -2811,8 +2883,8 @@ const ChatInterface: React.FC<Props> = ({
         </div>
       )}
 
-      <div className="px-4 pb-4 pt-2 bg-gradient-to-t from-[#08090a] via-[#08090a]/95 to-transparent relative z-10">
-        <div className="relative bg-[#0c0d10] border border-white/[0.06] rounded-2xl overflow-hidden focus-within:border-cyan-500/30 focus-within:ring-1 focus-within:ring-cyan-500/10 transition-all">
+      <div className="px-5 pb-5 pt-3 bg-gradient-to-t from-bio-void via-bio-void/95 to-transparent relative z-10">
+        <div className="relative glass-slide border border-white/[0.06] rounded-2xl overflow-hidden focus-within:border-vital-cyan/30 focus-within:shadow-[0_0_30px_rgba(42,212,212,0.1)] transition-all duration-300">
           <textarea
             ref={inputRef}
             value={input}
@@ -2822,23 +2894,23 @@ const ChatInterface: React.FC<Props> = ({
               // Auto-resize: reset to default if empty, otherwise expand
               const target = e.target;
               if (!newValue.trim()) {
-                target.style.height = "52px";
+                target.style.height = "56px";
               } else {
-                target.style.height = "52px";
+                target.style.height = "56px";
                 target.style.height = `${Math.min(target.scrollHeight, 160)}px`;
               }
             }}
             onKeyDown={handleKeyDown}
             placeholder={getPlaceholder()}
             rows={1}
-            className="w-full bg-transparent px-4 py-3.5 pr-14 text-[13px] text-zinc-200 placeholder:text-zinc-600 focus:outline-none resize-none custom-scrollbar leading-relaxed"
-            style={{ minHeight: "52px", maxHeight: "160px" }}
+            className="w-full bg-transparent px-5 py-4 pr-16 text-sm font-sans text-serum-white placeholder:text-gray-500 focus:outline-none resize-none custom-scrollbar leading-relaxed"
+            style={{ minHeight: "56px", maxHeight: "160px" }}
           />
           <button
             onClick={handleSend}
             disabled={!input.trim() || isLoading}
             data-send-button
-            className="absolute right-3 bottom-3 p-2.5 bg-gradient-to-r from-cyan-500 to-teal-500 text-black rounded-xl hover:opacity-90 disabled:opacity-20 disabled:cursor-not-allowed transition-all shadow-lg shadow-cyan-500/20 disabled:shadow-none"
+            className="absolute right-3 bottom-3 p-3 bg-vital-cyan text-bio-void rounded-xl hover:bg-vital-cyan/90 disabled:opacity-20 disabled:cursor-not-allowed transition-all duration-300 shadow-[0_0_20px_rgba(42,212,212,0.3)] disabled:shadow-none"
           >
             {isLoading ? (
               <Loader2 size={16} className="animate-spin" />
@@ -2848,9 +2920,9 @@ const ChatInterface: React.FC<Props> = ({
           </button>
         </div>
 
-        <p className="text-[10px] text-zinc-600 text-center mt-2.5 tracking-wide">
-          <span className="text-zinc-500">Enter</span> to send ·{" "}
-          <span className="text-zinc-500">Shift+Enter</span> for new line
+        <p className="text-[10px] text-gray-500 text-center mt-3 tracking-wide font-sans">
+          <span className="text-gray-500">Enter</span> to send ·{" "}
+          <span className="text-gray-500">Shift+Enter</span> for new line
         </p>
       </div>
     </div>

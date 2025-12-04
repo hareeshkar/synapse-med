@@ -904,7 +904,7 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
     return (
       <div
         ref={containerRef}
-        className={`relative overflow-hidden bg-[#0a0b0d] ${className}`}
+        className={`relative overflow-hidden bg-[#030406] ${className}`}
       >
         {/* CSS for flow animation */}
         <style>{`
@@ -944,20 +944,20 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
                 {hoveredNode.label}
               </div>
               {hoveredNode.description && (
-                <div className="text-[10px] text-gray-400 leading-relaxed mb-2 max-w-[200px]">
+                <div className="text-[10px] text-gray-200 leading-relaxed mb-2 max-w-[200px]">
                   {hoveredNode.description}
                 </div>
               )}
               <div className="flex items-center gap-2 pt-2 border-t border-white/10">
                 <div className="flex items-center gap-1">
                   <Link2 size={10} className="text-gray-500" />
-                  <span className="text-[10px] text-gray-400">
+                  <span className="text-[10px] text-gray-300">
                     {nodeConnections[hoveredNode.id] || 0} connections
                   </span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Zap size={10} className="text-clinical-amber" />
-                  <span className="text-[10px] text-gray-400">
+                  <span className="text-[10px] text-gray-300">
                     {hoveredNode.val * 10}% relevance
                   </span>
                 </div>
@@ -974,7 +974,7 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
             <div className="flex items-center gap-2">
               <div className="bg-black/70 backdrop-blur-lg px-3 py-2 rounded-lg border border-white/10 flex items-center gap-3 shadow-xl">
                 <Atom size={14} className="text-clinical-cyan" />
-                <span className="text-[11px] font-medium text-gray-300">
+                <span className="text-[11px] font-medium text-gray-200">
                   {filteredData.nodes.length} nodes ·{" "}
                   {filteredData.links.length} connections
                 </span>
@@ -996,7 +996,7 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
                       ${
                         isActive
                           ? `bg-${config.color}/10 border-${config.color}/30 text-white shadow-[0_0_10px_rgba(0,0,0,0.3)]`
-                          : "bg-black/40 border-white/5 text-gray-500 hover:bg-white/5 hover:text-gray-300"
+                          : "bg-black/40 border-white/5 text-gray-300 hover:bg-white/5 hover:text-gray-200"
                       }
                     `}
                     style={{
@@ -1008,7 +1008,7 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
                   >
                     <Icon
                       size={10}
-                      className={isActive ? "text-white" : "text-gray-500"}
+                      className={isActive ? "text-white" : "text-gray-300"}
                     />
                     {config.name}
                   </button>
@@ -1032,7 +1032,7 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
             >
               <button
                 onClick={() => setShowSearch(!showSearch)}
-                className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white transition-colors flex-shrink-0"
+                className="w-10 h-10 flex items-center justify-center text-gray-200 hover:text-white transition-colors flex-shrink-0"
               >
                 <Search size={16} />
               </button>
@@ -1042,7 +1042,7 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search nodes..."
                 className={`
-                        w-full bg-transparent border-none text-sm text-white placeholder-gray-500 focus:ring-0 h-10 pr-3
+                        w-full bg-transparent border-none text-sm text-white placeholder-gray-400 focus:ring-0 h-10 pr-3
                         ${showSearch ? "opacity-100" : "opacity-0"}
                     `}
               />
@@ -1078,7 +1078,7 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
                       .call(zoomRef.current.transform, d3.zoomIdentity);
                   }
                 }}
-                className="p-2 rounded-lg bg-black/40 border border-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+                className="p-2 rounded-lg bg-black/40 border border-white/5 text-gray-300 hover:text-white hover:bg-white/10 transition-all"
                 title="Reset View"
               >
                 <RotateCcw size={16} />

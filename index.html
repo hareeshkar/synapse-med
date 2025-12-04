@@ -3,51 +3,110 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Synapse Med | Clinical Intelligence</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Synapse Med | Intelligence Environment</title>
+
+    <!-- FONTS: The Voice of Clinical Authority -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Cormorant Garamond: Human warmth, editorial gravitas -->
+    <!-- Manrope: Supreme legibility for medical data -->
+    <!-- JetBrains Mono: Precision for clinical values -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&family=Manrope:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons+Round"
+      rel="stylesheet"
+    />
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- THE "LABORATORY" PALETTE - Biological Dark Theme -->
     <script>
       tailwind.config = {
         theme: {
           extend: {
             fontFamily: {
-              sans: ["Inter", "sans-serif"],
-              serif: ["Crimson Pro", "serif"],
+              sans: ["Manrope", "sans-serif"],
+              serif: ["Cormorant Garamond", "serif"],
               mono: ["JetBrains Mono", "monospace"],
-              display: ["Outfit", "sans-serif"],
             },
             colors: {
-              obsidian: "#0f1014",
-              charcoal: "#18181b",
-              glass: "rgba(255, 255, 255, 0.05)",
-              "glass-border": "rgba(255, 255, 255, 0.1)",
+              // Core Biological Palette
+              "bio-void": "#020405",
+              "bio-deep": "#0a0c0f",
+              "serum-white": "#F2F7FA",
+              "vital-cyan": "#2AD4D4",
+              "tissue-rose": "#E05D5D",
+              "synapse-amber": "#F0B429",
+              "neural-purple": "#9F7AEA",
+
+              // Legacy compatibility
+              obsidian: "#020405",
+              charcoal: "#0a0c0f",
+              glass: "rgba(255, 255, 255, 0.03)",
+              "glass-border": "rgba(255, 255, 255, 0.06)",
+              "glass-surface": "rgba(255, 255, 255, 0.03)",
+
               clinical: {
-                cyan: "#06b6d4",
-                teal: "#14b8a6",
-                rose: "#f43f5e",
-                amber: "#f59e0b",
+                cyan: "#2AD4D4",
+                teal: "#20B2AA",
+                rose: "#E05D5D",
+                amber: "#F0B429",
                 slate: "#64748b",
-                purple: "#8b5cf6",
+                purple: "#9F7AEA",
+                text: "#94A3B8",
               },
+            },
+            letterSpacing: {
+              clinical: "0.04em",
+              editorial: "-0.02em",
+              wide: "0.15em",
             },
             animation: {
               "pulse-slow": "pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+              "pulse-subtle": "pulseSubtle 3s ease-in-out infinite",
               glow: "glow 2s ease-in-out infinite alternate",
               shimmer: "shimmer 2s ease-in-out infinite",
+              float: "float 6s ease-in-out infinite",
+              breathe: "breathe 4s ease-in-out infinite",
+              fadeInUp: "fadeInUp 0.6s ease-out forwards",
+              scaleIn: "scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+              subtlePulse: "subtlePulse 3s ease-in-out infinite",
             },
             keyframes: {
               glow: {
-                "0%": { boxShadow: "0 0 5px rgba(6, 182, 212, 0.2)" },
-                "100%": { boxShadow: "0 0 20px rgba(6, 182, 212, 0.6)" },
+                "0%": { boxShadow: "0 0 5px rgba(42, 212, 212, 0.2)" },
+                "100%": { boxShadow: "0 0 30px rgba(42, 212, 212, 0.5)" },
               },
               shimmer: {
                 "0%": { transform: "translateX(-100%)" },
                 "100%": { transform: "translateX(100%)" },
+              },
+              float: {
+                "0%, 100%": { transform: "translateY(0)" },
+                "50%": { transform: "translateY(-10px)" },
+              },
+              breathe: {
+                "0%, 100%": { opacity: "0.4" },
+                "50%": { opacity: "0.8" },
+              },
+              pulseSubtle: {
+                "0%, 100%": { opacity: "1" },
+                "50%": { opacity: "0.7" },
+              },
+              subtlePulse: {
+                "0%, 100%": { opacity: "1", transform: "scale(1)" },
+                "50%": { opacity: "0.85", transform: "scale(1.01)" },
+              },
+              fadeInUp: {
+                "0%": { opacity: "0", transform: "translateY(20px)" },
+                "100%": { opacity: "1", transform: "translateY(0)" },
+              },
+              scaleIn: {
+                "0%": { opacity: "0", transform: "scale(0.95)" },
+                "100%": { opacity: "1", transform: "scale(1)" },
               },
             },
           },
@@ -55,26 +114,102 @@
       };
     </script>
     <style>
+      /* ═══════════════════════════════════════════════════════════
+         BASE DYNAMICS - THE LIVING SUBSTRATE
+         ═══════════════════════════════════════════════════════════ */
       body {
-        background-color: #0f1014;
-        color: #e2e8f0;
+        background-color: transparent;
+        color: #f2f7fa;
         -webkit-font-smoothing: antialiased;
+        overflow-x: hidden;
         transition: all 0.3s ease;
       }
 
-      /* --- DYSLEXIA MODE OVERRIDES --- */
+      /* Base dark background applied to html for proper fallback */
+      html {
+        background-color: #020405;
+      }
+
+      /* 1. ATMOSPHERE - NOISE TEXTURE (Film Grain) */
+      .bio-grain {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 9999;
+        opacity: 0.025;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+      }
+
+      /* 2. FROSTED GLASS EFFECT (Medical Slide Aesthetic) */
+      .glass-slide {
+        background: rgba(10, 12, 15, 0.6);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+        box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.6);
+      }
+
+      .glass-panel {
+        background: rgba(10, 12, 15, 0.5);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      /* 3. INTERACTIVE CARD PHYSICS */
+      .interactive-card {
+        transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+          border-color 0.4s ease, background 0.4s ease, box-shadow 0.4s ease;
+      }
+      .interactive-card:hover {
+        transform: translateY(-4px) scale(1.005);
+        border-color: rgba(42, 212, 212, 0.25);
+        background: rgba(42, 212, 212, 0.02);
+        box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.5),
+          0 0 40px rgba(42, 212, 212, 0.08);
+      }
+
+      /* 4. CELL MEMBRANE UPLOAD ZONE */
+      .cell-membrane {
+        border: 1px dashed rgba(255, 255, 255, 0.12);
+        transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      .cell-membrane.drag-active,
+      .cell-membrane:hover {
+        border-color: #2ad4d4;
+        border-style: solid;
+        background: rgba(42, 212, 212, 0.04);
+        transform: scale(0.98);
+        box-shadow: 0 0 40px rgba(42, 212, 212, 0.1) inset;
+      }
+
+      /* 5. GRADIENT TEXT */
+      .gradient-text {
+        background-clip: text;
+        -webkit-background-clip: text;
+        color: transparent;
+        background-image: linear-gradient(135deg, #f2f7fa 40%, #64748b 100%);
+      }
+
+      /* ═══════════════════════════════════════════════════════════
+         DYSLEXIA MODE OVERRIDES
+         ═══════════════════════════════════════════════════════════ */
       body.dyslexia-mode {
-        background-color: #fdf6e3 !important; /* Cream background for lower contrast strain */
+        background-color: #fdf6e3 !important;
         color: #1a1a1a !important;
       }
       body.dyslexia-mode .bg-obsidian,
       body.dyslexia-mode .bg-charcoal,
+      body.dyslexia-mode .bg-bio-void,
+      body.dyslexia-mode .bg-bio-deep,
       body.dyslexia-mode aside {
         background-color: #eee8d5 !important;
         color: #1a1a1a !important;
         border-color: #d6d3c9 !important;
       }
-      body.dyslexia-mode .text-white {
+      body.dyslexia-mode .text-white,
+      body.dyslexia-mode .text-serum-white {
         color: #1a1a1a !important;
       }
       body.dyslexia-mode .text-gray-400,
@@ -83,256 +218,246 @@
       }
       body.dyslexia-mode .markdown-content {
         font-family: "Verdana", "Arial", sans-serif !important;
-        line-height: 2.2 !important; /* Extra spacing */
+        line-height: 2.2 !important;
         letter-spacing: 0.05em !important;
       }
-      body.dyslexia-mode b {
-        font-weight: 900 !important;
-      }
 
-      /* Custom scrollbar */
+      /* ═══════════════════════════════════════════════════════════
+         SCROLLBAR - Minimal & Elegant
+         ═══════════════════════════════════════════════════════════ */
       ::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
+        width: 5px;
+        height: 5px;
       }
       ::-webkit-scrollbar-track {
-        background: #0f1014;
+        background: transparent;
       }
       ::-webkit-scrollbar-thumb {
-        background: #334155;
-        border-radius: 3px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 10px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #475569;
-      }
-      .glass-panel {
-        background: rgba(24, 24, 27, 0.6);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(42, 212, 212, 0.3);
       }
 
-      /* Markdown Styles - Dark Medical Journal (NEJM-Inspired, Dark Mode) */
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+
+      /* ═══════════════════════════════════════════════════════════
+         MARKDOWN CONTENT - Editorial Medical Journal (NEJM Dark)
+         Optimized for extended reading sessions
+         ═══════════════════════════════════════════════════════════ */
       .markdown-content {
-        font-family: "Crimson Pro", serif;
-        font-size: 1.125rem; /* 18px */
-        line-height: 1.9;
+        font-family: "Cormorant Garamond", Georgia, serif;
+        font-size: 1.25rem;
+        line-height: 1.95;
         color: #d1d5db;
         font-weight: 400;
-        letter-spacing: 0.3px;
+        letter-spacing: 0.015em;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
       }
 
       /* Headers - Bold Editorial Authority */
       .markdown-content h1 {
-        font-family: "Inter", sans-serif;
-        font-size: 2.5em;
-        font-weight: 800;
-        color: #ffffff;
-        margin-bottom: 0.6em;
-        margin-top: 1.4em;
+        font-family: "Manrope", sans-serif;
+        font-size: 2.8em;
+        font-weight: 700;
+        color: #f2f7fa;
+        margin-bottom: 0.5em;
+        margin-top: 1.2em;
         letter-spacing: -0.03em;
-        border-bottom: 3px solid #1f2937;
+        border-bottom: 2px solid rgba(42, 212, 212, 0.2);
         padding-bottom: 0.4em;
-        text-transform: uppercase;
-        tracking-tight: true;
       }
       .markdown-content h2 {
-        font-family: "Inter", sans-serif;
-        font-size: 1.8em;
-        font-weight: 700;
-        color: #e5e7eb;
-        margin-bottom: 0.7em;
-        margin-top: 2em;
-        border-left: 5px solid #06b6d4;
+        font-family: "Manrope", sans-serif;
+        font-size: 1.9em;
+        font-weight: 600;
+        color: #e2e8f0;
+        margin-bottom: 0.6em;
+        margin-top: 1.8em;
+        border-left: 4px solid #2ad4d4;
         padding-left: 1em;
         letter-spacing: -0.02em;
       }
       .markdown-content h3 {
-        font-family: "Inter", sans-serif;
-        font-size: 1.35em;
+        font-family: "Manrope", sans-serif;
+        font-size: 0.85em;
         font-weight: 600;
-        color: #f3f4f6;
-        margin-bottom: 0.6em;
-        margin-top: 1.6em;
+        color: rgba(242, 247, 250, 0.7);
+        margin-bottom: 0.5em;
+        margin-top: 1.5em;
         text-transform: uppercase;
-        font-size: 0.9em;
-        letter-spacing: 0.05em;
-        opacity: 0.95;
+        letter-spacing: 0.12em;
       }
       .markdown-content h4 {
-        font-family: "Inter", sans-serif;
+        font-family: "Manrope", sans-serif;
         font-size: 1.1em;
         font-weight: 600;
-        color: #d1d5db;
-        margin-bottom: 0.5em;
+        color: #94a3b8;
+        margin-bottom: 0.4em;
         margin-top: 1.2em;
       }
 
-      /* Body Text Enhancements */
+      /* Body Text - Optimized for reading */
       .markdown-content p {
-        margin-bottom: 1.4em;
-        color: #d1d5db;
+        margin-bottom: 1.6em;
+        color: #c9d1d9;
+        font-size: 1.1em;
       }
       .markdown-content ul {
-        list-style-type: disc;
-        padding-left: 1.8em;
-        margin-bottom: 1.4em;
-        color: #b0b9c3;
+        list-style-type: none;
+        padding-left: 0;
+        margin-bottom: 1.6em;
+      }
+      .markdown-content ul li {
+        position: relative;
+        padding-left: 1.6em;
+        margin-bottom: 0.8em;
+        color: #b0bec5;
+        font-size: 1.05em;
+      }
+      .markdown-content ul li::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0.65em;
+        width: 6px;
+        height: 6px;
+        background: linear-gradient(135deg, #2ad4d4, #20b2aa);
+        border-radius: 50%;
       }
       .markdown-content ol {
         list-style-type: decimal;
         padding-left: 1.8em;
-        margin-bottom: 1.4em;
-        color: #b0b9c3;
+        margin-bottom: 1.5em;
+        color: #94a3b8;
       }
       .markdown-content li {
         margin-bottom: 0.6em;
-        padding-left: 0.3em;
-        color: #b0b9c3;
       }
 
       /* Emphasis - Clinical Authority */
       .markdown-content strong {
-        color: #ffffff;
+        color: #f2f7fa;
         font-weight: 700;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.02em;
       }
       .markdown-content em {
         color: #cbd5e1;
         font-style: italic;
-        font-weight: 500;
       }
 
-      /* Callouts - Clinical Hierarchy */
+      /* Blockquote - Clinical Callout */
       .markdown-content blockquote {
-        border-left: 5px solid #3b82f6;
+        border-left: 4px solid #f0b429;
         padding: 1.2em 1.8em;
-        color: #cbd5e1;
+        color: #e2e8f0;
         font-style: italic;
         background: linear-gradient(
           to right,
-          rgba(59, 130, 246, 0.08),
+          rgba(240, 180, 41, 0.06),
           transparent
         );
-        border-radius: 2px;
+        border-radius: 0 8px 8px 0;
         margin: 2em 0;
-        font-family: "Inter", sans-serif;
+        font-family: "Manrope", sans-serif;
         font-size: 0.95em;
         font-weight: 500;
       }
 
       /* Code - Monospace Medical Values */
       .markdown-content code {
-        background: rgba(15, 16, 20, 0.8);
-        padding: 0.3em 0.6em;
-        border-radius: 3px;
-        border: 1px solid rgba(75, 85, 99, 0.4);
+        background: rgba(42, 212, 212, 0.08);
+        padding: 0.25em 0.5em;
+        border-radius: 4px;
+        border: 1px solid rgba(42, 212, 212, 0.15);
         font-family: "JetBrains Mono", monospace;
-        font-size: 0.9em;
-        color: #34d399;
-        letter-spacing: 0.2px;
+        font-size: 0.85em;
+        color: #2ad4d4;
       }
 
-      /* Smart Links */
+      /* Smart Links - Neural Connections */
       .smart-link {
         cursor: pointer;
-        color: #22d3ee;
+        color: #2ad4d4;
         font-weight: 600;
         text-decoration: none;
-        border-bottom: 2px solid rgba(34, 211, 238, 0.4);
-        transition: all 0.2s ease;
-        padding-bottom: 1px;
+        border-bottom: 2px solid rgba(42, 212, 212, 0.3);
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        padding-bottom: 2px;
         position: relative;
         display: inline-block;
       }
       .smart-link::before {
         content: "";
         position: absolute;
-        inset: -2px -4px;
-        background: rgba(6, 182, 212, 0.08);
-        border-radius: 3px;
+        inset: -3px -6px;
+        background: rgba(42, 212, 212, 0.06);
+        border-radius: 4px;
         opacity: 0;
-        transition: opacity 0.2s ease;
+        transition: opacity 0.3s ease;
         z-index: -1;
       }
       .smart-link:hover {
-        color: #06b6d4;
-        border-bottom-color: #06b6d4;
+        color: #5eead4;
+        border-bottom-color: #5eead4;
+        text-shadow: 0 0 20px rgba(42, 212, 212, 0.4);
       }
       .smart-link:hover::before {
         opacity: 1;
       }
 
-      /* Tables - Data Clarity */
+      /* Tables - Clinical Data Display */
       .markdown-content table {
         width: 100%;
         border-collapse: separate;
         border-spacing: 0;
-        margin: 2.2em 0;
-        font-size: 0.95em;
-        border: 2px solid #374151;
-        border-radius: 4px;
+        margin: 2.5em 0;
+        font-size: 0.9em;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 12px;
         overflow: hidden;
-        font-family: "Inter", sans-serif;
-        background: rgba(15, 23, 42, 0.6);
+        font-family: "Manrope", sans-serif;
+        background: rgba(10, 12, 15, 0.4);
       }
       .markdown-content th {
-        background: linear-gradient(to bottom, #1f2937, #111827);
-        font-weight: 700;
+        background: linear-gradient(
+          to bottom,
+          rgba(42, 212, 212, 0.08),
+          rgba(42, 212, 212, 0.04)
+        );
+        font-weight: 600;
         text-align: left;
-        padding: 1.2em 1em;
-        border-bottom: 2px solid #374151;
-        color: #ffffff;
+        padding: 1em 1.2em;
+        border-bottom: 1px solid rgba(42, 212, 212, 0.15);
+        color: #f2f7fa;
         text-transform: uppercase;
-        font-size: 0.8em;
-        letter-spacing: 0.08em;
+        font-size: 0.75em;
+        letter-spacing: 0.1em;
       }
       .markdown-content td {
-        padding: 1em;
-        border-bottom: 1px solid #2d3748;
-        color: #d1d5db;
+        padding: 1em 1.2em;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        color: #94a3b8;
       }
       .markdown-content tr:last-child td {
-        border-bottom: 2px solid #374151;
+        border-bottom: none;
       }
       .markdown-content tr:hover td {
-        background: rgba(75, 85, 99, 0.15);
-        transition: background 0.2s ease;
+        background: rgba(42, 212, 212, 0.03);
+        transition: background 0.3s ease;
       }
 
-      /* Additional animations for ThinkingModal */
-      @keyframes shimmer {
-        0% {
-          background-position: -200% 0;
-        }
-        100% {
-          background-position: 200% 0;
-        }
-      }
-
-      @keyframes fadeInUp {
-        from {
-          opacity: 0;
-          transform: translateY(10px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-
-      @keyframes slideUp {
-        from {
-          opacity: 0;
-          transform: translateY(5px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-
-      /* Custom scrollbar for dark mode */
+      /* ═══════════════════════════════════════════════════════════
+         CUSTOM SCROLLBAR VARIANTS
+         ═══════════════════════════════════════════════════════════ */
       .custom-scrollbar::-webkit-scrollbar {
         width: 4px;
       }
@@ -340,11 +465,11 @@
         background: transparent;
       }
       .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 2px;
+        background: rgba(42, 212, 212, 0.15);
+        border-radius: 4px;
       }
       .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: rgba(255, 255, 255, 0.2);
+        background: rgba(42, 212, 212, 0.3);
       }
     </style>
     <script type="importmap">
@@ -364,6 +489,10 @@
     <link rel="stylesheet" href="/index.css" />
   </head>
   <body>
+    <!-- Film grain overlay for organic texture -->
+    <div class="bio-grain"></div>
+    <!-- Background container for WebGL shader (populated by React Portal) -->
+    <div id="bio-background-root"></div>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
