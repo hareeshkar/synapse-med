@@ -74,6 +74,8 @@ export interface AugmentedNote {
   eli5Analogy?: string;
   timestamp: number;
   sourceFileNames: string[];
+  // IDs of uploaded files persisted to IndexedDB (optional)
+  sourceFileIds?: string[];
   sources: Source[]; // Verified sources from Grounding
 }
 

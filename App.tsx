@@ -58,6 +58,17 @@ import ChatInterface from "./components/ChatInterface";
 import BioBackground from "./components/BioBackground";
 import { GeminiService } from "./services/geminiService";
 import {
+  NoteRepository,
+  ProfileRepository,
+  StorageRepository,
+  base64ToBlob,
+  blobToBase64,
+  recordToNote,
+  noteToRecord,
+  recordToProfile,
+  profileToRecord,
+} from "./src/lib";
+import {
   ProcessingStatus,
   AugmentedNote,
   FileInput,
@@ -73,6 +84,124 @@ import {
   SUFFIX_ANIMATION_CLASS,
 } from "./utils/greetingService";
 
+// ═══════════════════════════════════════════════════════════════════════════
+// ATTACHMENT ROW COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════
+interface AttachmentRowProps {
+  fileId: string;
+}
+
+const AttachmentRow: React.FC<AttachmentRowProps> = ({ fileId }) => {
+  const [metadata, setMetadata] = useState<{
+    file_name: string;
+    size: number;
+    mime_type: string;
+  } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadMetadata() {
+      try {
+        const blob = await StorageRepository.download(fileId);
+        if (!mounted || !blob) return;
+        const meta = await StorageRepository.getMetadata(fileId);
+        if (mounted && meta) {
+          setMetadata({
+            file_name: meta.file_name,
+            size: meta.size,
+            mime_type: meta.mime_type,
+          });
+        }
+      } catch (e) {
+        console.warn("Failed to load attachment metadata:", e);
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    }
+
+    loadMetadata();
+    return () => {
+      mounted = false;
+    };
+  }, [fileId]);
+
+  const handleOpen = async () => {
+    try {
+      const url = await StorageRepository.createObjectURL(fileId);
+      if (url) {
+        window.open(url, "_blank");
+      }
+    } catch (e) {
+      console.warn("Failed to open attachment:", e);
+    }
+  };
+
+  const handleDownload = async () => {
+    try {
+      const blob = await StorageRepository.download(fileId);
+      if (!blob || !metadata) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = metadata.file_name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.warn("Failed to download attachment:", e);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-between p-3 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+        <div className="text-gray-400 text-[13px]">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!metadata) {
+    return null;
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-3 p-4 rounded-lg bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.05] hover:border-white/[0.08] transition-all">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-tissue-rose/10 border border-tissue-rose/20 flex items-center justify-center">
+          <FileText size={16} className="text-tissue-rose" />
+        </div>
+        <div className="min-w-0">
+          <div className="text-[14px] text-gray-100 truncate font-medium">
+            {metadata.file_name}
+          </div>
+          <div className="text-[12px] text-gray-500">
+            {(metadata.size / 1024).toFixed(1)} KB
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <button
+          onClick={handleOpen}
+          className="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-md text-[12px] font-medium text-gray-300 hover:text-white transition-all"
+          title="Open in new tab"
+        >
+          Open
+        </button>
+        <button
+          onClick={handleDownload}
+          className="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-md text-[12px] font-medium text-gray-300 hover:text-white transition-all flex items-center gap-1"
+          title="Download file"
+        >
+          <Download size={12} />
+          Download
+        </button>
+      </div>
+    </div>
+  );
+};
+
 // Initialize Gemini service for API interactions
 const gemini = new GeminiService();
 
@@ -82,7 +211,7 @@ const App: React.FC = () => {
   // ===============================
   // Core app state: tracks processing status, user library, and active views
   const [status, setStatus] = useState<ProcessingStatus>(ProcessingStatus.IDLE);
-  const [library, setLibrary] = useState<AugmentedNote[]>([]); // User's generated notes stored in localStorage
+  const [library, setLibrary] = useState<AugmentedNote[]>([]); // User's generated notes stored in IndexedDB
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null); // Currently viewed note
   const [activeNav, setActiveNav] = useState<"dashboard" | "library" | "stats">(
     "dashboard"
@@ -135,24 +264,57 @@ const App: React.FC = () => {
   const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [isProfileLoaded, setIsProfileLoaded] = useState(false); // Prevent onboarding flash on refresh
 
-  // Load saved profile on mount
+  // Load saved profile from IndexedDB on mount
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("synapseUserProfile");
-      if (saved) setUserProfile(JSON.parse(saved));
-    } catch (e) {
-      console.warn("Failed to load user profile:", e);
-    } finally {
-      setIsProfileLoaded(true); // Mark that we've checked localStorage
-    }
+    const loadProfile = async () => {
+      try {
+        const record = await ProfileRepository.get();
+        if (record) {
+          // Load profile picture if stored
+          let profilePicture: string | undefined;
+          if (record.profile_picture_id) {
+            const blob = await StorageRepository.download(
+              record.profile_picture_id
+            );
+            if (blob) {
+              profilePicture = await blobToBase64(blob);
+            }
+          }
+          setUserProfile(recordToProfile(record, profilePicture));
+        }
+      } catch (e) {
+        console.warn("Failed to load user profile:", e);
+      } finally {
+        setIsProfileLoaded(true);
+      }
+    };
+    loadProfile();
   }, []);
 
-  // Save profile when it changes
+  // Save profile to IndexedDB when it changes
   useEffect(() => {
-    if (userProfile) {
+    if (!userProfile || !isProfileLoaded) return;
+
+    const saveProfile = async () => {
       try {
-        localStorage.setItem("synapseUserProfile", JSON.stringify(userProfile));
-        console.log("💾 [Profile] Saved to localStorage:", {
+        // Handle profile picture storage
+        let profile_picture_id: string | undefined;
+        if (userProfile.profilePicture) {
+          // Store profile picture as a file
+          const blob = await fetch(userProfile.profilePicture).then((r) =>
+            r.blob()
+          );
+          profile_picture_id = await StorageRepository.upload(blob, {
+            fileName: "profile-picture",
+            relatedNoteId: "profile", // Use 'profile' as the "note" for profile files
+          });
+        }
+
+        await ProfileRepository.save({
+          ...profileToRecord(userProfile),
+          profile_picture_id,
+        });
+        console.log("💾 [Profile] Saved to IndexedDB:", {
           name: userProfile.name,
           discipline: userProfile.discipline,
           level: userProfile.level,
@@ -161,8 +323,9 @@ const App: React.FC = () => {
       } catch (e) {
         console.warn("Failed to save profile:", e);
       }
-    }
-  }, [userProfile]);
+    };
+    saveProfile();
+  }, [userProfile, isProfileLoaded]);
 
   const handleProfileSave = useCallback((updatedProfile: UserProfile) => {
     setUserProfile(updatedProfile);
@@ -209,28 +372,72 @@ const App: React.FC = () => {
   );
 
   // ===============================
-  // PERSISTENCE: Load/Save Library to localStorage
+  // PERSISTENCE: Load/Save Library to IndexedDB
   // ===============================
+  const [isLibraryLoaded, setIsLibraryLoaded] = useState(false);
+  const libraryLoadedRef = useRef(false); // Track if initial load is done
+
   // Load library on app mount
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("synapseMedLibrary");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setLibrary(parsed);
+    const loadLibrary = async () => {
+      try {
+        const records = await NoteRepository.list();
+        // Convert records to AugmentedNote format, loading audio if present
+        const notes: AugmentedNote[] = await Promise.all(
+          records.map(async (record) => {
+            let audioBase64: string | undefined;
+            if (record.audio_file_id) {
+              const blob = await StorageRepository.download(
+                record.audio_file_id
+              );
+              if (blob) {
+                audioBase64 = await blobToBase64(blob);
+              }
+            }
+            return recordToNote(record, audioBase64);
+          })
+        );
+        setLibrary(notes);
+        console.log(`📚 [Library] Loaded ${notes.length} notes from IndexedDB`);
+      } catch (e) {
+        console.warn("Failed to load library from IndexedDB:", e);
+      } finally {
+        setIsLibraryLoaded(true);
+        libraryLoadedRef.current = true;
       }
-    } catch (e) {
-      console.warn("Failed to load library from localStorage:", e);
-    }
+    };
+    loadLibrary();
   }, []);
 
-  // Save library whenever it changes
+  // Save library to IndexedDB when it changes (skip initial empty state)
   useEffect(() => {
-    try {
-      localStorage.setItem("synapseMedLibrary", JSON.stringify(library));
-    } catch (e) {
-      console.warn("Failed to save library to localStorage:", e);
-    }
+    // Skip save if we haven't loaded yet
+    if (!libraryLoadedRef.current) return;
+
+    const saveLibrary = async () => {
+      try {
+        for (const note of library) {
+          // Handle audio storage
+          let audio_file_id: string | undefined;
+          if (note.audioBase64) {
+            const blob = base64ToBlob(note.audioBase64, "audio/wav");
+            audio_file_id = await StorageRepository.upload(blob, {
+              fileName: "podcast-audio.wav",
+              relatedNoteId: note.id,
+            });
+          }
+
+          await NoteRepository.save({
+            ...noteToRecord(note),
+            audio_file_id,
+          });
+        }
+        console.log(`💾 [Library] Saved ${library.length} notes to IndexedDB`);
+      } catch (e) {
+        console.warn("Failed to save library to IndexedDB:", e);
+      }
+    };
+    saveLibrary();
   }, [library]);
 
   // ===============================
@@ -369,7 +576,7 @@ const App: React.FC = () => {
               )
             );
           } else if (update.stage === "complete") {
-            // 🔧 FIX: Update with final result including smart links and sources
+            // Update with final result including smart links and sources
             if (update.data) {
               setLibrary((prev) =>
                 prev.map((n) =>
@@ -398,7 +605,7 @@ const App: React.FC = () => {
         }
       );
 
-      // 🔧 FIX: Final update with complete result (smart links + sources)
+      //  Final update with complete result (smart links + sources)
       // This ensures the processed markdown with node links is saved
       result.id = tempNoteId;
       setLibrary((prev) =>
@@ -412,6 +619,42 @@ const App: React.FC = () => {
             : n
         )
       );
+
+      // Persist original uploaded files to IndexedDB (StorageRepository)
+      // so PDFs/audio/images are available later and linked to the note.
+      try {
+        if (stagingFiles && stagingFiles.length > 0) {
+          const uploadedIds: string[] = [];
+          for (const f of stagingFiles) {
+            try {
+              // f.file is a File object (from input); upload as Blob
+              if (f.file) {
+                const id = await StorageRepository.upload(f.file, {
+                  fileName: f.file.name,
+                  relatedNoteId: tempNoteId,
+                });
+                uploadedIds.push(id);
+              }
+            } catch (innerErr) {
+              console.warn(
+                "Failed to upload source file to IndexedDB:",
+                innerErr
+              );
+            }
+          }
+
+          if (uploadedIds.length > 0) {
+            // Attach file IDs to the generated note in local state
+            setLibrary((prev) =>
+              prev.map((n) =>
+                n.id === tempNoteId ? { ...n, sourceFileIds: uploadedIds } : n
+              )
+            );
+          }
+        }
+      } catch (e) {
+        console.warn("Error persisting staged files:", e);
+      }
 
       setStagingFiles([]);
       setTopicName("");
@@ -511,7 +754,7 @@ const App: React.FC = () => {
   // ===============================
   // RENDER: Main App UI
   // ===============================
-  // Don't render anything until profile is loaded from localStorage (prevents flash)
+  // Don't render anything until profile is loaded from IndexedDB (prevents flash)
   if (!isProfileLoaded) {
     return null;
   }
@@ -520,23 +763,24 @@ const App: React.FC = () => {
     return (
       <Onboarding
         onComplete={(profile) => {
-          try {
-            localStorage.setItem("synapseUserProfile", JSON.stringify(profile));
-          } catch (e) {
-            console.warn("Failed to save profile:", e);
-          }
+          // The useEffect will handle saving to IndexedDB
           setUserProfile(profile);
         }}
       />
     );
   }
+  // Hide BioBackground in study workspace (Master Guide / Neural Web) to reduce scrim/noise darkness
+  const isStudyWorkspace =
+    activeNav === "dashboard" && activeNoteId && activeNote;
+
   return (
     <>
-      {/* Render background to dedicated container that sits before #root in DOM */}
-      {ReactDOM.createPortal(
-        <BioBackground />,
-        document.getElementById("bio-background-root") || document.body
-      )}
+      {/* Render background to dedicated container — skip in study workspace for cleaner reading */}
+      {!isStudyWorkspace &&
+        ReactDOM.createPortal(
+          <BioBackground />,
+          document.getElementById("bio-background-root") || document.body
+        )}
       <div className="min-h-screen bg-transparent text-serum-white font-sans flex overflow-hidden transition-colors duration-500 relative">
         {/* Content layers */}
 
@@ -749,6 +993,7 @@ const App: React.FC = () => {
             <button
               onClick={() => {
                 setActiveNav("library");
+                setActiveNoteId(null); // Clear active note when going to library
                 setIsChatOpen(false);
                 setSelectedText(null);
               }}
@@ -1272,7 +1517,7 @@ const App: React.FC = () => {
           {/* ═══════════════════════════════════════════════════════════════
             VIEW: STUDY WORKSPACE (Active Note)
             ═══════════════════════════════════════════════════════════════ */}
-          {activeNoteId && activeNote && (
+          {activeNav === "dashboard" && activeNoteId && activeNote && (
             <div className="flex-1 flex overflow-hidden">
               {/* MAIN CONTENT AREA */}
               <div className="flex-1 flex relative overflow-hidden">
@@ -1350,7 +1595,7 @@ const App: React.FC = () => {
                     </div>
 
                     {/* Content + Chat Layout */}
-                    <div className="flex-1 flex overflow-hidden relative bg-[#030406]">
+                    <div className="flex-1 flex overflow-hidden relative bg-[#080a0d]">
                       {/* Main Guide Content - Adjusts when chat opens */}
                       <div
                         className={`overflow-y-auto scroll-smooth transition-all duration-500 ease-out custom-scrollbar ${
@@ -1366,8 +1611,9 @@ const App: React.FC = () => {
                               : "px-10 max-w-4xl mx-auto"
                           }`}
                         >
-                          {/* Atmospheric Background - positioned relative to content */}
-                          <div className="absolute top-0 -right-1/4 w-[400px] h-[400px] bg-vital-cyan/[0.015] rounded-full blur-[150px] pointer-events-none z-0" />
+                          {/* Atmospheric Background - brighter glow */}
+                          <div className="absolute top-0 -right-1/4 w-[500px] h-[500px] bg-vital-cyan/[0.025] rounded-full blur-[120px] pointer-events-none z-0" />
+                          <div className="absolute bottom-1/3 -left-1/4 w-[400px] h-[400px] bg-neural-purple/[0.015] rounded-full blur-[100px] pointer-events-none z-0" />
                           <div className="relative z-10">
                             {showEli5 && activeNote.eli5Analogy && (
                               <div className="mb-10 p-7 bg-gradient-to-br from-neural-purple/10 to-transparent border border-neural-purple/20 rounded-2xl">
@@ -1666,6 +1912,42 @@ const App: React.FC = () => {
                                       </span>
                                     </a>
                                   ))}
+                                </div>
+                              </div>
+                            )}
+
+                          {/* Attachments Section */}
+                          {activeNote.sourceFileIds &&
+                            activeNote.sourceFileIds.length > 0 && (
+                              <div className="mt-16 pt-10 border-t border-white/[0.04]">
+                                <div className="flex items-center gap-3 mb-6">
+                                  <div className="w-10 h-10 rounded-xl bg-tissue-rose/10 border border-tissue-rose/20 flex items-center justify-center">
+                                    <FileText
+                                      size={18}
+                                      className="text-tissue-rose"
+                                    />
+                                  </div>
+                                  <div>
+                                    <h3 className="text-base font-sans font-semibold text-serum-white">
+                                      Attachments
+                                    </h3>
+                                    <span className="text-[10px] font-mono text-tissue-rose/70 tracking-wide">
+                                      {activeNote.sourceFileIds.length} file
+                                      {activeNote.sourceFileIds.length !== 1
+                                        ? "s"
+                                        : ""}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="space-y-3">
+                                  {activeNote.sourceFileIds.map(
+                                    (fileId, idx) => (
+                                      <AttachmentRow
+                                        key={idx}
+                                        fileId={fileId}
+                                      />
+                                    )
+                                  )}
                                 </div>
                               </div>
                             )}

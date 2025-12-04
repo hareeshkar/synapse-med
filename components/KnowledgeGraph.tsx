@@ -125,6 +125,11 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
     >("clustered");
     const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
 
+    // Refs for click outside
+    const searchContainerRef = useRef<HTMLDivElement>(null);
+    const toolbarContainerRef = useRef<HTMLDivElement>(null);
+    const searchInputRef = useRef<HTMLInputElement>(null);
+
     // D3 Refs
     const simulationRef = useRef<d3.Simulation<GraphNode, GraphLink> | null>(
       null
@@ -857,37 +862,48 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
       }
     }, [selectedNodeId, connectedNodeIds, layoutMode]);
 
-    // Keyboard shortcuts
+    // Click outside to dismiss search
     useEffect(() => {
-      const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.target instanceof HTMLInputElement) return;
-        if (e.key === "/" && !showSearch) {
-          e.preventDefault();
-          setShowSearch(true);
-        }
-        if (e.key === "Escape") {
-          if (selectedNodeId) onNodeSelect(null);
-          else if (showSearch) {
-            setShowSearch(false);
-            setSearchQuery("");
-          }
-        }
-        if (e.key === "l" || e.key === "L") setShowLabels((p) => !p);
-        // Toggle connections visibility
-        if (e.key === "c" || e.key === "C") {
-          if (gRef.current) {
-            const links = gRef.current.selectAll(".links path");
-            const currentOpacity = links.attr("stroke-opacity");
-            const newOpacity = currentOpacity === "0" ? "0.3" : "0";
-            links.transition().duration(200).attr("stroke-opacity", newOpacity);
-            // Also toggle markers
-            links.attr("marker-end", newOpacity === "0" ? null : "url(#arrow)");
-          }
+      const handleClickOutside = (event: MouseEvent) => {
+        if (
+          showSearch &&
+          searchContainerRef.current &&
+          toolbarContainerRef.current &&
+          !searchContainerRef.current.contains(event.target as Node) &&
+          !toolbarContainerRef.current.contains(event.target as Node)
+        ) {
+          setShowSearch(false);
+          setSearchQuery("");
+          // ensure caret/focus removed
+          if (searchInputRef.current) searchInputRef.current.blur();
         }
       };
-      window.addEventListener("keydown", handleKeyDown);
-      return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [showSearch, onNodeSelect, selectedNodeId, showLabels]);
+
+      if (showSearch) {
+        document.addEventListener("mousedown", handleClickOutside);
+        // Focus the input when search opens
+        if (searchInputRef.current) {
+          searchInputRef.current.focus();
+        }
+      }
+
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
+    }, [showSearch]);
+
+    // Keyboard: Escape closes the search and blurs the input
+    useEffect(() => {
+      const handleKey = (e: KeyboardEvent) => {
+        if (e.key === "Escape" && showSearch) {
+          setShowSearch(false);
+          setSearchQuery("");
+          if (searchInputRef.current) searchInputRef.current.blur();
+        }
+      };
+      window.addEventListener("keydown", handleKey);
+      return () => window.removeEventListener("keydown", handleKey);
+    }, [showSearch]);
 
     const toggleFilter = (group: number) => {
       setActiveFilters((prev) => {
@@ -906,13 +922,33 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
         ref={containerRef}
         className={`relative overflow-hidden bg-[#030406] ${className}`}
       >
-        {/* CSS for flow animation */}
+        {/* CSS for flow animation + toolbar/search transitions */}
         <style>{`
             @keyframes flow {
                 to { stroke-dashoffset: -30; }
             }
             .animate-flow {
                 animation: flow 1s linear infinite;
+            }
+
+            /* smooth width/opacity transition and improved caret/line-height for search input */
+            .kg-search-input {
+              transition: opacity 180ms ease, width 220ms cubic-bezier(.2,.9,.2,1);
+              font-size: 14px;
+              line-height: 20px; /* keep caret normal height */
+              height: 40px;
+              padding: 0 8px;
+              caret-color: #06b6d4; /* clinical cyan */
+              outline: none;
+              box-shadow: none;
+              border: none;
+              background: transparent;
+              appearance: none;
+            }
+
+            /* When collapsed, hide the caret completely without leaving artifacts */
+            .kg-search-input.caret-hidden {
+              caret-color: transparent !important;
             }
         `}</style>
 
@@ -1018,46 +1054,15 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
           </div>
 
           {/* Right: Search & View Controls */}
-          <div className="flex flex-col gap-3 items-end pointer-events-auto">
-            {/* Search Bar */}
+          {/* Toolbar first, then search. On mobile stack vertically.
+              When search expands, toolbar slides right with animation. */}
+          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3 pointer-events-auto justify-end">
+            {/* View Toggles: toolbar before search */}
             <div
-              className={`
-                flex items-center bg-black/80 backdrop-blur-xl border border-white/10 rounded-lg overflow-hidden transition-all duration-300
-                ${
-                  showSearch
-                    ? "w-64 shadow-[0_0_20px_rgba(6,182,212,0.15)] ring-1 ring-clinical-cyan/30"
-                    : "w-10 bg-transparent border-transparent"
-                }
-             `}
+              ref={toolbarContainerRef}
+              className="flex gap-2 items-center"
+              style={{ minWidth: 0 }}
             >
-              <button
-                onClick={() => setShowSearch(!showSearch)}
-                className="w-10 h-10 flex items-center justify-center text-gray-200 hover:text-white transition-colors flex-shrink-0"
-              >
-                <Search size={16} />
-              </button>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search nodes..."
-                className={`
-                        w-full bg-transparent border-none text-sm text-white placeholder-gray-400 focus:ring-0 h-10 pr-3
-                        ${showSearch ? "opacity-100" : "opacity-0"}
-                    `}
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery("")}
-                  className="mr-2 text-gray-500 hover:text-white"
-                >
-                  <X size={12} />
-                </button>
-              )}
-            </div>
-
-            {/* View Toggles */}
-            <div className="flex gap-2">
               <button
                 onClick={() => setShowLabels(!showLabels)}
                 className={`p-2 rounded-lg border transition-all ${
@@ -1068,6 +1073,78 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
                 title="Toggle Labels (L)"
               >
                 {showLabels ? <Eye size={16} /> : <EyeOff size={16} />}
+              </button>
+              <button
+                onClick={() => {
+                  if (
+                    svgSelectionRef.current &&
+                    zoomRef.current &&
+                    containerRef.current
+                  ) {
+                    const svgNode = svgSelectionRef.current.node()!;
+                    const currentTransform = d3.zoomTransform(svgNode);
+                    const width = containerRef.current.clientWidth;
+                    const height = containerRef.current.clientHeight;
+                    const centerX = width / 2;
+                    const centerY = height / 2;
+
+                    // Calculate zoom towards center
+                    const newScale = Math.min(currentTransform.k * 1.5, 4);
+                    const scaleFactor = newScale / currentTransform.k;
+                    const newX =
+                      centerX - (centerX - currentTransform.x) * scaleFactor;
+                    const newY =
+                      centerY - (centerY - currentTransform.y) * scaleFactor;
+
+                    svgSelectionRef.current
+                      .transition()
+                      .duration(300)
+                      .call(
+                        zoomRef.current.transform,
+                        d3.zoomIdentity.translate(newX, newY).scale(newScale)
+                      );
+                  }
+                }}
+                className="p-2 rounded-lg bg-black/40 border border-white/5 text-gray-300 hover:text-white hover:bg-white/10 transition-all"
+                title="Zoom In"
+              >
+                <ZoomIn size={16} />
+              </button>
+              <button
+                onClick={() => {
+                  if (
+                    svgSelectionRef.current &&
+                    zoomRef.current &&
+                    containerRef.current
+                  ) {
+                    const svgNode = svgSelectionRef.current.node()!;
+                    const currentTransform = d3.zoomTransform(svgNode);
+                    const width = containerRef.current.clientWidth;
+                    const height = containerRef.current.clientHeight;
+                    const centerX = width / 2;
+                    const centerY = height / 2;
+
+                    // Calculate zoom towards center
+                    const newScale = Math.max(currentTransform.k * 0.67, 0.1);
+                    const scaleFactor = newScale / currentTransform.k;
+                    const newX =
+                      centerX - (centerX - currentTransform.x) * scaleFactor;
+                    const newY =
+                      centerY - (centerY - currentTransform.y) * scaleFactor;
+
+                    svgSelectionRef.current
+                      .transition()
+                      .duration(300)
+                      .call(
+                        zoomRef.current.transform,
+                        d3.zoomIdentity.translate(newX, newY).scale(newScale)
+                      );
+                  }
+                }}
+                className="p-2 rounded-lg bg-black/40 border border-white/5 text-gray-300 hover:text-white hover:bg-white/10 transition-all"
+                title="Zoom Out"
+              >
+                <ZoomOut size={16} />
               </button>
               <button
                 onClick={() => {
@@ -1084,6 +1161,58 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
                 <RotateCcw size={16} />
               </button>
             </div>
+
+            {/* Search Bar */}
+            <div
+              ref={searchContainerRef}
+              className={`
+                flex items-center bg-black/80 backdrop-blur-xl border border-white/10 rounded-lg overflow-hidden transition-all duration-300 shrink-0
+                ${
+                  showSearch
+                    ? "shadow-[0_0_20px_rgba(6,182,212,0.15)] ring-1 ring-clinical-cyan/30"
+                    : "bg-transparent border-transparent"
+                }
+             `}
+              style={{
+                width: showSearch ? 256 : 40,
+                minWidth: showSearch ? 256 : 40,
+              }}
+            >
+              <button
+                onClick={() => {
+                  // toggle search; when closing, blur and clear
+                  if (!showSearch) {
+                    setShowSearch(true);
+                  } else {
+                    setShowSearch(false);
+                    setSearchQuery("");
+                    if (searchInputRef.current) searchInputRef.current.blur();
+                  }
+                }}
+                className="w-10 h-10 flex items-center justify-center text-gray-200 hover:text-white transition-colors flex-shrink-0"
+              >
+                <Search size={16} />
+              </button>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                ref={searchInputRef}
+                placeholder="Search nodes..."
+                className={`kg-search-input w-full bg-transparent border-none text-sm text-white placeholder-gray-400 focus:ring-0 h-10 pr-3 ${
+                  showSearch ? "opacity-100" : "opacity-0"
+                } ${!showSearch ? "caret-hidden" : ""}`}
+                spellCheck={false}
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="mr-2 text-gray-500 hover:text-white"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1091,6 +1220,13 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
         <svg
           ref={svgRef}
           className="w-full h-full cursor-grab active:cursor-grabbing"
+          onClick={() => {
+            if (showSearch) {
+              setShowSearch(false);
+              setSearchQuery("");
+              if (searchInputRef.current) searchInputRef.current.blur();
+            }
+          }}
         />
 
         {/* Bottom Legend/Hint */}

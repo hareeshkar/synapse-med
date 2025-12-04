@@ -190,24 +190,24 @@ const NodeInspector: React.FC<Props> = ({
             </button>
           </div>
 
-          <h2 className="text-3xl font-serif font-light text-white leading-tight tracking-tight mb-2">
+          <h2 className="text-4xl font-sans font-medium text-white leading-tight tracking-tight mb-3">
             {node.label}
           </h2>
 
           {node.description && (
-            <p className="text-sm text-gray-200 leading-relaxed">
+            <p className="text-[15px] text-gray-100 leading-relaxed">
               {node.description}
             </p>
           )}
 
           {/* Synonyms */}
           {node.synonyms && node.synonyms.length > 0 && (
-            <div className="flex items-center gap-2 mt-3 flex-wrap">
-              <Tag size={10} className="text-gray-300" />
+            <div className="flex items-center gap-2 mt-4 flex-wrap">
+              <Tag size={11} className="text-gray-400" />
               {node.synonyms.map((syn, i) => (
                 <span
                   key={i}
-                  className="text-[10px] px-2 py-0.5 bg-white/5 border border-white/10 rounded text-gray-200"
+                  className="text-[12px] px-2.5 py-1 bg-white/5 border border-white/10 rounded text-gray-300"
                 >
                   {syn}
                 </span>
@@ -216,31 +216,31 @@ const NodeInspector: React.FC<Props> = ({
           )}
 
           {/* Stats */}
-          <div className="grid grid-cols-3 gap-3 mt-5 pt-4 border-t border-white/[0.06]">
+          <div className="grid grid-cols-3 gap-4 mt-6 pt-5 border-t border-white/[0.06]">
             <div>
-              <span className="text-[9px] text-gray-500 uppercase tracking-widest block mb-1">
+              <span className="text-[10px] text-gray-400 uppercase tracking-widest block mb-2">
                 Links
               </span>
-              <span className="text-xl font-mono font-light text-white">
+              <span className="text-2xl font-mono font-light text-white">
                 {connectionCount}
               </span>
             </div>
             <div>
-              <span className="text-[9px] text-gray-500 uppercase tracking-widest block mb-1">
+              <span className="text-[10px] text-gray-400 uppercase tracking-widest block mb-2">
                 Weight
               </span>
-              <span className="text-xl font-mono font-light text-white">
+              <span className="text-2xl font-mono font-light text-white">
                 {node.val}
-                <span className="text-xs text-gray-500">/20</span>
+                <span className="text-xs text-gray-400">/20</span>
               </span>
             </div>
             <div>
-              <span className="text-[9px] text-gray-500 uppercase tracking-widest block mb-1">
+              <span className="text-[10px] text-gray-400 uppercase tracking-widest block mb-2">
                 ID
               </span>
               <button
                 onClick={() => handleCopy(node.id, node.id)}
-                className="flex items-center gap-1 text-[10px] font-mono text-gray-200 hover:text-white transition-all"
+                className="flex items-center gap-1 text-[11px] font-mono text-gray-300 hover:text-white transition-all"
               >
                 {copiedId === node.id ? (
                   <Check size={10} className="text-green-500" />
@@ -263,13 +263,13 @@ const NodeInspector: React.FC<Props> = ({
             <button
               key={tab.id}
               onClick={() => setActiveSection(tab.id as any)}
-              className={`flex items-center gap-1.5 px-4 py-3 text-[10px] font-bold uppercase tracking-wider border-b-2 transition-all ${
+              className={`flex items-center gap-2 px-4 py-3 text-[11px] font-bold uppercase tracking-wider border-b-2 transition-all ${
                 activeSection === tab.id
                   ? `${colors.text} border-current`
-                  : "text-gray-300 border-transparent hover:text-gray-200"
+                  : "text-gray-400 border-transparent hover:text-gray-300"
               }`}
             >
-              <tab.icon size={12} />
+              <tab.icon size={13} />
               {tab.label}
             </button>
           ))}
@@ -282,13 +282,13 @@ const NodeInspector: React.FC<Props> = ({
               {/* Clinical Pearl */}
               {node.clinicalPearl && (
                 <div className="p-4 rounded-lg bg-gradient-to-r from-amber-500/10 to-transparent border border-amber-500/20">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Lightbulb size={14} className="text-amber-400" />
-                    <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Lightbulb size={15} className="text-amber-400" />
+                    <span className="text-[11px] font-bold text-amber-300 uppercase tracking-wider">
                       High-Yield Pearl
                     </span>
                   </div>
-                  <p className="text-sm text-gray-200 leading-relaxed">
+                  <p className="text-[15px] text-gray-100 leading-relaxed">
                     {node.clinicalPearl}
                   </p>
                 </div>
@@ -296,17 +296,23 @@ const NodeInspector: React.FC<Props> = ({
 
               {/* Details */}
               {node.details && (
-                <div className="space-y-3">
-                  <h3 className="text-[10px] font-bold text-gray-300 uppercase tracking-widest flex items-center gap-2 pb-2 border-b border-white/[0.06]">
-                    <Microscope size={12} className="text-clinical-cyan" />
+                <div className="space-y-4">
+                  <h3 className="text-[11px] font-bold text-gray-200 uppercase tracking-widest flex items-center gap-2 pb-3 border-b border-white/[0.06]">
+                    <Microscope size={13} className="text-clinical-cyan" />
                     In-Depth Analysis
                   </h3>
-                  <div className="prose prose-sm prose-invert max-w-none text-gray-200 text-[14px] leading-relaxed">
+                  <div
+                    className="prose prose-sm prose-invert max-w-none text-[15.7px] leading-relaxed"
+                    style={{
+                      fontFamily:
+                        '"Source Sans 3", "Plus Jakarta Sans", "DM Sans", system-ui, sans-serif',
+                    }}
+                  >
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
                         p: ({ children }) => (
-                          <p className="font-serif mb-3">{children}</p>
+                          <p className="mb-4 text-gray-100">{children}</p>
                         ),
                         strong: ({ children }) => (
                           <strong className="text-white font-semibold">
@@ -317,12 +323,12 @@ const NodeInspector: React.FC<Props> = ({
                           <em className="text-clinical-cyan">{children}</em>
                         ),
                         ul: ({ children }) => (
-                          <ul className="list-disc pl-4 space-y-1">
+                          <ul className="list-disc pl-5 space-y-2">
                             {children}
                           </ul>
                         ),
                         li: ({ children }) => (
-                          <li className="text-gray-200">{children}</li>
+                          <li className="text-gray-100">{children}</li>
                         ),
                       }}
                     >
@@ -334,15 +340,15 @@ const NodeInspector: React.FC<Props> = ({
 
               {/* Differentials */}
               {node.differentials && node.differentials.length > 0 && (
-                <div className="space-y-2">
-                  <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                <div className="space-y-3">
+                  <h4 className="text-[11px] font-bold text-gray-300 uppercase tracking-widest">
                     Differential Diagnosis
                   </h4>
                   <div className="flex flex-wrap gap-2">
                     {node.differentials.map((diff, i) => (
                       <span
                         key={i}
-                        className="text-xs px-2.5 py-1 bg-clinical-rose/10 border border-clinical-rose/20 text-clinical-rose rounded"
+                        className="text-[13px] px-3 py-1.5 bg-clinical-rose/10 border border-clinical-rose/20 text-clinical-rose/90 rounded"
                       >
                         {diff}
                       </span>
@@ -356,9 +362,9 @@ const NodeInspector: React.FC<Props> = ({
           {activeSection === "network" && (
             <>
               {outgoingLinks.length > 0 && (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
-                    <ArrowRight size={12} />
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-[11px] font-bold text-emerald-400 uppercase tracking-wider">
+                    <ArrowRight size={13} />
                     Downstream ({outgoingLinks.length})
                   </div>
                   <div className="space-y-2">
@@ -382,10 +388,10 @@ const NodeInspector: React.FC<Props> = ({
                             className={`w-1.5 h-8 rounded-full ${targetColors.bg}/50`}
                           />
                           <div className="flex-1 min-w-0">
-                            <div className="text-[9px] text-gray-500 font-mono uppercase">
+                            <div className="text-[10px] text-gray-400 font-mono uppercase">
                               {link.relationship}
                             </div>
-                            <div className="text-sm text-gray-200 group-hover:text-white truncate">
+                            <div className="text-[15px] text-gray-100 group-hover:text-white truncate">
                               {targetNode.label}
                             </div>
                           </div>
@@ -401,9 +407,9 @@ const NodeInspector: React.FC<Props> = ({
               )}
 
               {incomingLinks.length > 0 && (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-[10px] font-bold text-amber-400 uppercase tracking-wider">
-                    <ArrowLeft size={12} />
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-[11px] font-bold text-amber-400 uppercase tracking-wider">
+                    <ArrowLeft size={13} />
                     Upstream ({incomingLinks.length})
                   </div>
                   <div className="space-y-2">
@@ -427,10 +433,10 @@ const NodeInspector: React.FC<Props> = ({
                             className={`w-1.5 h-8 rounded-full ${sourceColors.bg}/50`}
                           />
                           <div className="flex-1 min-w-0">
-                            <div className="text-[9px] text-gray-500 font-mono uppercase">
+                            <div className="text-[10px] text-gray-400 font-mono uppercase">
                               {link.relationship}
                             </div>
-                            <div className="text-sm text-gray-200 group-hover:text-white truncate">
+                            <div className="text-[15px] text-gray-100 group-hover:text-white truncate">
                               {sourceNode.label}
                             </div>
                           </div>
@@ -446,7 +452,7 @@ const NodeInspector: React.FC<Props> = ({
               )}
 
               {connectionCount === 0 && (
-                <div className="text-center py-10 text-gray-500 text-sm">
+                <div className="text-center py-10 text-gray-400 text-[15px]">
                   No connections found for this node.
                 </div>
               )}
@@ -463,20 +469,20 @@ const NodeInspector: React.FC<Props> = ({
                 rel="noopener noreferrer"
                 className="flex items-center gap-4 p-4 rounded-lg bg-clinical-cyan/5 border border-clinical-cyan/20 hover:bg-clinical-cyan/10 transition-all group"
               >
-                <div className="w-10 h-10 rounded-lg bg-clinical-cyan/20 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-clinical-cyan/20 flex items-center justify-center flex-shrink-0">
                   <BookOpen size={18} className="text-clinical-cyan" />
                 </div>
                 <div className="flex-1">
-                  <div className="text-sm font-medium text-white group-hover:text-clinical-cyan transition-colors">
+                  <div className="text-[15px] font-medium text-white group-hover:text-clinical-cyan transition-colors">
                     PubMed
                   </div>
-                  <div className="text-[11px] text-gray-500">
+                  <div className="text-[12px] text-gray-400">
                     Search peer-reviewed literature
                   </div>
                 </div>
                 <ExternalLink
                   size={14}
-                  className="text-gray-500 group-hover:text-clinical-cyan"
+                  className="text-gray-500 group-hover:text-clinical-cyan flex-shrink-0"
                 />
               </a>
 
@@ -488,16 +494,21 @@ const NodeInspector: React.FC<Props> = ({
                 rel="noopener noreferrer"
                 className="flex items-center gap-4 p-4 rounded-lg bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.05] transition-all group"
               >
-                <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0">
                   <FileText size={18} className="text-gray-300" />
                 </div>
                 <div className="flex-1">
-                  <div className="text-sm font-medium text-white">UpToDate</div>
-                  <div className="text-[11px] text-gray-500">
+                  <div className="text-[15px] font-medium text-white">
+                    UpToDate
+                  </div>
+                  <div className="text-[12px] text-gray-400">
                     Evidence-based clinical resource
                   </div>
                 </div>
-                <ExternalLink size={14} className="text-gray-500" />
+                <ExternalLink
+                  size={14}
+                  className="text-gray-500 flex-shrink-0"
+                />
               </a>
 
               <a
@@ -508,18 +519,21 @@ const NodeInspector: React.FC<Props> = ({
                 rel="noopener noreferrer"
                 className="flex items-center gap-4 p-4 rounded-lg bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.05] transition-all group"
               >
-                <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0">
                   <Microscope size={18} className="text-gray-300" />
                 </div>
                 <div className="flex-1">
-                  <div className="text-sm font-medium text-white">
+                  <div className="text-[15px] font-medium text-white">
                     Radiopaedia
                   </div>
-                  <div className="text-[11px] text-gray-500">
+                  <div className="text-[12px] text-gray-400">
                     Medical imaging reference
                   </div>
                 </div>
-                <ExternalLink size={14} className="text-gray-500" />
+                <ExternalLink
+                  size={14}
+                  className="text-gray-500 flex-shrink-0"
+                />
               </a>
 
               <a
@@ -531,18 +545,21 @@ const NodeInspector: React.FC<Props> = ({
                 rel="noopener noreferrer"
                 className="flex items-center gap-4 p-4 rounded-lg bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.05] transition-all group"
               >
-                <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0">
                   <Search size={18} className="text-gray-300" />
                 </div>
                 <div className="flex-1">
-                  <div className="text-sm font-medium text-white">
+                  <div className="text-[15px] font-medium text-white">
                     Scholar Search
                   </div>
-                  <div className="text-[11px] text-gray-500">
+                  <div className="text-[12px] text-gray-400">
                     NIH & WHO sources only
                   </div>
                 </div>
-                <ExternalLink size={14} className="text-gray-500" />
+                <ExternalLink
+                  size={14}
+                  className="text-gray-500 flex-shrink-0"
+                />
               </a>
             </div>
           )}

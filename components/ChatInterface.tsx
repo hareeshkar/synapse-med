@@ -42,6 +42,7 @@ import {
   QuizQuestion,
   QuizTopic,
 } from "../services/geminiChatService";
+import { ChatRepository } from "../src/lib";
 import { UserProfile, KnowledgeNode } from "../types";
 
 // ═══════════════════════════════════════════════════════════
@@ -58,8 +59,6 @@ interface Props {
   onClose: () => void;
   onClearSelection?: () => void;
 }
-
-const getChatStorageKey = (noteId: string) => `synapse-chat-${noteId}`;
 
 // Mode descriptions for tooltips
 const MODE_INFO: Record<
@@ -626,13 +625,13 @@ const MessageBubble: React.FC<{
   if (message.isSystemMessage) {
     return (
       <div className="flex justify-center py-3">
-        <div className="bg-zinc-800/40 text-zinc-300 text-xs px-5 py-2.5 rounded-xl border border-zinc-700/40 max-w-[85%] text-center shadow-sm">
+        <div className="bg-zinc-800/50 text-zinc-200 text-[13px] px-5 py-2.5 rounded-xl border border-zinc-700/40 max-w-[85%] text-center shadow-sm">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
               p: ({ children }) => <span>{children}</span>,
               strong: ({ children }) => (
-                <span className="font-semibold text-zinc-300">{children}</span>
+                <span className="font-semibold text-zinc-100">{children}</span>
               ),
             }}
           >
@@ -667,10 +666,10 @@ const MessageBubble: React.FC<{
         )}
 
         <div
-          className={`relative rounded-2xl px-4 py-3 text-[13px] leading-[1.65] ${
+          className={`relative rounded-2xl px-4 py-3 text-[14px] leading-[1.7] ${
             isUser
-              ? "bg-gradient-to-br from-zinc-800/80 to-zinc-900/60 text-zinc-100 rounded-tr-sm border border-zinc-700/50"
-              : "bg-[#0f1012] text-zinc-300 rounded-tl-sm border border-white/[0.05]"
+              ? "bg-gradient-to-br from-zinc-800/80 to-zinc-900/60 text-zinc-50 rounded-tr-sm border border-zinc-700/50"
+              : "bg-[#0f1012] text-zinc-200 rounded-tl-sm border border-white/[0.06]"
           }`}
         >
           {isUser ? (
@@ -768,7 +767,7 @@ const MessageBubble: React.FC<{
                     }
 
                     return (
-                      <p className="mb-3 last:mb-0 text-zinc-300 leading-relaxed text-[13px]">
+                      <p className="mb-3 last:mb-0 text-zinc-100 leading-relaxed text-[14px]">
                         {children}
                       </p>
                     );
@@ -779,7 +778,7 @@ const MessageBubble: React.FC<{
                     </strong>
                   ),
                   em: ({ children }) => (
-                    <em className="text-zinc-300">{children}</em>
+                    <em className="text-zinc-200">{children}</em>
                   ),
                   ul: ({ children }) => (
                     <ul className="list-none space-y-2 my-3 pl-0">
@@ -792,12 +791,12 @@ const MessageBubble: React.FC<{
                     </ol>
                   ),
                   li: ({ children }) => (
-                    <li className="relative pl-4 text-[13px] text-zinc-300 leading-relaxed before:absolute before:left-0 before:top-2 before:w-1.5 before:h-1.5 before:bg-gradient-to-br before:from-cyan-400 before:to-teal-500 before:rounded-full">
+                    <li className="relative pl-4 text-[14px] text-zinc-100 leading-relaxed before:absolute before:left-0 before:top-2 before:w-1.5 before:h-1.5 before:bg-gradient-to-br before:from-cyan-400 before:to-teal-500 before:rounded-full">
                       {children}
                     </li>
                   ),
                   blockquote: ({ children }) => (
-                    <blockquote className="border-l-2 border-cyan-500/30 pl-3 my-2.5 italic text-zinc-300 bg-cyan-500/[0.02] py-1.5 rounded-r">
+                    <blockquote className="border-l-2 border-cyan-500/30 pl-3 my-2.5 italic text-zinc-200 bg-cyan-500/[0.03] py-1.5 rounded-r">
                       {children}
                     </blockquote>
                   ),
@@ -940,7 +939,7 @@ const MessageBubble: React.FC<{
                     </th>
                   ),
                   td: ({ children }) => (
-                    <td className="px-2.5 py-1.5 border-b border-white/5 text-zinc-300">
+                    <td className="px-2.5 py-1.5 border-b border-white/5 text-zinc-100">
                       {children}
                     </td>
                   ),
@@ -963,7 +962,7 @@ const MessageBubble: React.FC<{
               {copied ? (
                 <Check size={10} className="text-emerald-400" />
               ) : (
-                <Copy size={10} className="text-zinc-500" />
+                <Copy size={10} className="text-zinc-400" />
               )}
             </button>
           )}
@@ -1131,7 +1130,7 @@ const TopicPanel: React.FC<{
                 Choose Your Focus Area
               </span>
             </div>
-            <p className="text-[10px] text-zinc-500 mt-1 ml-[18px] italic">
+            <p className="text-[11px] text-zinc-400 mt-1 ml-[18px] italic">
               Select a topic to begin your personalized quiz journey
             </p>
           </div>
@@ -1234,7 +1233,7 @@ const TopicPanel: React.FC<{
 
           {/* Footer hint */}
           <div className="relative px-4 py-2.5 border-t border-white/[0.03] bg-black/20">
-            <p className="text-[9px] text-zinc-500 text-center italic">
+            <p className="text-[10px] text-zinc-400 text-center italic">
               Click any topic to generate a challenging question
             </p>
           </div>
@@ -1368,7 +1367,7 @@ const QuickActions: React.FC<{
         <button
           key={label}
           onClick={() => onSelect(prompt)}
-          className={`flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.02] border border-white/[0.06] text-[11px] text-zinc-500 transition-all group ${colorClasses[color]}`}
+          className={`flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.02] border border-white/[0.06] text-[12px] text-zinc-400 transition-all group ${colorClasses[color]}`}
         >
           <Icon size={12} className="transition-colors" />
           <span className="font-medium">{label}</span>
@@ -1457,33 +1456,45 @@ const ChatInterface: React.FC<Props> = ({
   );
 
   // ═══ PERSISTENCE (debounced to prevent lag) ═══
-  // Load saved chat on mount
-  useEffect(() => {
-    const saved = localStorage.getItem(getChatStorageKey(effectiveNoteId));
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        const restoredMessages =
-          parsed.messages?.filter((m: ChatMessage) => !m.isThinking) || [];
-        setMessages(restoredMessages);
-        setMode(parsed.mode || "tutor");
+  // Track if initial load is done
+  const initialLoadDoneRef = useRef(false);
 
-        // Mark all restored messages as already animated so they don't re-animate
-        // when the component remounts (e.g., switching between Neural Web and Master Guide)
-        if (restoredMessages.length > 0) {
-          setAnimatedMessageIds(
-            new Set(restoredMessages.map((m: ChatMessage) => m.id))
+  // Load saved chat from IndexedDB on mount
+  useEffect(() => {
+    const loadChat = async () => {
+      try {
+        const savedMessages = await ChatRepository.getForNote(effectiveNoteId);
+        if (savedMessages && savedMessages.length > 0) {
+          const restoredMessages = savedMessages.filter(
+            (m: ChatMessage) => !m.isThinking
           );
+          setMessages(restoredMessages);
+          // Mode is not stored separately anymore, default to tutor
+          setMode("tutor");
+
+          // Mark all restored messages as already animated so they don't re-animate
+          // when the component remounts (e.g., switching between Neural Web and Master Guide)
+          if (restoredMessages.length > 0) {
+            setAnimatedMessageIds(
+              new Set(restoredMessages.map((m: ChatMessage) => m.id))
+            );
+          }
         }
-      } catch {
+      } catch (e) {
+        console.error("Failed to load chat from IndexedDB:", e);
         setMessages([]);
+      } finally {
+        initialLoadDoneRef.current = true;
       }
-    }
+    };
+    loadChat();
   }, [effectiveNoteId]);
 
-  // Debounced save to localStorage (500ms delay to batch rapid updates)
+  // Debounced save to IndexedDB (500ms delay to batch rapid updates)
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
+    // Skip save if initial load hasn't completed
+    if (!initialLoadDoneRef.current) return;
     if (messages.length === 0) return;
 
     // Clear any pending save
@@ -1492,16 +1503,13 @@ const ChatInterface: React.FC<Props> = ({
     }
 
     // Debounce: wait 500ms after last change before saving
-    saveTimeoutRef.current = setTimeout(() => {
+    saveTimeoutRef.current = setTimeout(async () => {
       const messagesToSave = messages.filter((m) => !m.isThinking);
-      localStorage.setItem(
-        getChatStorageKey(effectiveNoteId),
-        JSON.stringify({
-          messages: messagesToSave,
-          mode,
-          lastUpdated: Date.now(),
-        })
-      );
+      try {
+        await ChatRepository.saveForNote(effectiveNoteId, messagesToSave);
+      } catch (e) {
+        console.error("Failed to save chat to IndexedDB:", e);
+      }
     }, 500);
 
     return () => {
@@ -2183,9 +2191,13 @@ const ChatInterface: React.FC<Props> = ({
   };
 
   // ═══ RESET ═══
-  const handleReset = () => {
+  const handleReset = async () => {
     setMessages([]);
-    localStorage.removeItem(getChatStorageKey(effectiveNoteId));
+    try {
+      await ChatRepository.deleteForNote(effectiveNoteId);
+    } catch (e) {
+      console.error("Failed to delete chat from IndexedDB:", e);
+    }
     setMode("tutor");
     setLastQuizContext(null);
     // Reset simulation state and allow starting a new one after reset
@@ -2640,7 +2652,7 @@ const ChatInterface: React.FC<Props> = ({
                 <h3 className="text-lg font-medium text-white mb-1">
                   Quiz Mode Active 🎯
                 </h3>
-                <p className="text-sm text-zinc-500 max-w-[280px] leading-relaxed mb-2">
+                <p className="text-sm text-zinc-400 max-w-[280px] leading-relaxed mb-2">
                   Select a topic below to start testing your knowledge
                 </p>
               </div>
@@ -2713,13 +2725,13 @@ const ChatInterface: React.FC<Props> = ({
             <h3 className="text-lg font-medium text-white mb-1">
               Hey {userProfile.name} 👋
             </h3>
-            <p className="text-sm text-zinc-500 max-w-[280px] leading-relaxed mb-2">
+            <p className="text-sm text-zinc-400 max-w-[280px] leading-relaxed mb-2">
               I've analyzed{" "}
               <span className="text-cyan-400 font-medium">{noteTitle}</span>.
             </p>
             {userProfile.examGoal &&
               userProfile.examGoal !== "General Knowledge" && (
-                <p className="text-xs text-zinc-500 mb-5">
+                <p className="text-xs text-zinc-400 mb-5">
                   Tailored for{" "}
                   <span className="text-amber-400/80 font-medium">
                     {userProfile.examGoal}
@@ -2736,8 +2748,8 @@ const ChatInterface: React.FC<Props> = ({
             />
 
             {/* Hint */}
-            <div className="mt-6 flex items-center gap-2 text-[10px] text-zinc-500">
-              <Info size={11} className="text-zinc-500" />
+            <div className="mt-6 flex items-center gap-2 text-[11px] text-zinc-400">
+              <Info size={11} className="text-zinc-400" />
               <span>Hover over modes above to learn what they do</span>
             </div>
           </div>
@@ -2788,7 +2800,7 @@ const ChatInterface: React.FC<Props> = ({
                   Selected Text
                 </span>
                 {initialSelection && (
-                  <span className="text-[10px] text-zinc-500">
+                  <span className="text-[11px] text-zinc-400">
                     ({initialSelection.length} chars)
                   </span>
                 )}
@@ -2903,7 +2915,7 @@ const ChatInterface: React.FC<Props> = ({
             onKeyDown={handleKeyDown}
             placeholder={getPlaceholder()}
             rows={1}
-            className="w-full bg-transparent px-5 py-4 pr-16 text-sm font-sans text-serum-white placeholder:text-gray-500 focus:outline-none resize-none custom-scrollbar leading-relaxed"
+            className="w-full bg-transparent px-5 py-4 pr-16 text-[15px] font-sans text-serum-white placeholder:text-zinc-400 focus:outline-none resize-none custom-scrollbar leading-relaxed"
             style={{ minHeight: "56px", maxHeight: "160px" }}
           />
           <button
@@ -2920,9 +2932,9 @@ const ChatInterface: React.FC<Props> = ({
           </button>
         </div>
 
-        <p className="text-[10px] text-gray-500 text-center mt-3 tracking-wide font-sans">
-          <span className="text-gray-500">Enter</span> to send ·{" "}
-          <span className="text-gray-500">Shift+Enter</span> for new line
+        <p className="text-[11px] text-zinc-400 text-center mt-3 tracking-wide font-sans">
+          <span className="text-zinc-400">Enter</span> to send ·{" "}
+          <span className="text-zinc-400">Shift+Enter</span> for new line
         </p>
       </div>
     </div>
