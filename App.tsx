@@ -77,6 +77,7 @@ import {
 } from "./types";
 import Onboarding from "./components/Onboarding";
 import { ProfileEditor } from "./components/ProfileEditor";
+import SplashScreen from "./components/SplashScreen";
 import {
   GreetingState,
   createInitialGreeting,
@@ -264,6 +265,11 @@ const App: React.FC = () => {
   const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [isProfileLoaded, setIsProfileLoaded] = useState(false); // Prevent onboarding flash on refresh
 
+  // ===============================
+  // SPLASH SCREEN STATE
+  // ===============================
+  const [showSplash, setShowSplash] = useState(true); // Show splash on app launch
+
   // Load saved profile from IndexedDB on mount
   useEffect(() => {
     const loadProfile = async () => {
@@ -327,6 +333,37 @@ const App: React.FC = () => {
     saveProfile();
   }, [userProfile, isProfileLoaded]);
 
+  // ===============================
+  // UPLOAD ZONE TILT EFFECT
+  // ===============================
+  useEffect(() => {
+    const uploadZone = uploadZoneRef.current;
+    if (!uploadZone) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const rect = uploadZone.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      const rotateX = ((y - centerY) / centerY) * -8; // max 8deg
+      const rotateY = ((x - centerX) / centerX) * 8;
+      uploadZone.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`;
+    };
+
+    const handleMouseLeave = () => {
+      uploadZone.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)`;
+    };
+
+    uploadZone.addEventListener("mousemove", handleMouseMove);
+    uploadZone.addEventListener("mouseleave", handleMouseLeave);
+
+    return () => {
+      uploadZone.removeEventListener("mousemove", handleMouseMove);
+      uploadZone.removeEventListener("mouseleave", handleMouseLeave);
+    };
+  }, []);
+
   const handleProfileSave = useCallback((updatedProfile: UserProfile) => {
     setUserProfile(updatedProfile);
     setShowProfileEditor(false);
@@ -360,7 +397,8 @@ const App: React.FC = () => {
     return () => clearInterval(id);
   }, [userProfile?.discipline]);
 
-  const fileInputRef = useRef<HTMLInputElement>(null); // Ref for hidden file input
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadZoneRef = useRef<HTMLDivElement>(null); // Ref for hidden file input
 
   // ===============================
   // COMPUTED PROPERTIES (memoized)
@@ -754,6 +792,17 @@ const App: React.FC = () => {
   // ===============================
   // RENDER: Main App UI
   // ===============================
+
+  // Show splash screen on initial app launch
+  if (showSplash) {
+    return (
+      <SplashScreen
+        onComplete={() => setShowSplash(false)}
+        minDuration={5500}
+      />
+    );
+  }
+
   // Don't render anything until profile is loaded from IndexedDB (prevents flash)
   if (!isProfileLoaded) {
     return null;
@@ -1233,8 +1282,9 @@ const App: React.FC = () => {
                   {/* Right Column: Upload Zone (The Petri Dish) */}
                   <div className="col-span-12 lg:col-span-7 animate-[fadeInUp_0.6s_ease-out_0.2s_both] lg:-mt-32">
                     <div
+                      ref={uploadZoneRef}
                       onClick={() => fileInputRef.current?.click()}
-                      className={`glass-slide interactive-card relative w-full min-h-[380px] rounded-[2rem] p-8 lg:p-10 cursor-pointer overflow-hidden group ${
+                      className={`glass-slide interactive-card relative w-full min-h-[420px] rounded-[2rem] p-8 lg:p-10 cursor-pointer overflow-hidden group ${
                         stagingFiles.length > 0
                           ? "border border-vital-cyan/20"
                           : "border border-white/[0.04]"
@@ -1246,53 +1296,88 @@ const App: React.FC = () => {
                         ref={fileInputRef}
                         onChange={handleFileSelect}
                         className="hidden"
-                        accept=".pdf,.txt,.png,.jpg,.jpeg,.heic,.heif,.webp,.mp3,.wav,.m4a,.aac,.flac,.ogg,.mp4,.webm,.mov,.mpeg,.mpg,.3gpp,.wmv,.avi,.mp4,.flv"
+                        accept=".pdf,.txt,.png,.jpg,.jpeg,.heic,.heif,.webp,.aac,.flac,.mp3,.m4a,.mpeg,.mpga,.mp4,.ogg,.pcm,.wav,.webm,.flv,.mov,.mpg,.mp4,.webm,.wmv,.3gpp"
                       />
 
-                      {/* Decorative Glow */}
-                      <div className="absolute top-0 right-0 w-64 h-64 bg-vital-cyan/5 rounded-full blur-[80px] pointer-events-none group-hover:bg-vital-cyan/10 transition-colors duration-500" />
+                      {/* Decorative Glow - Enhanced */}
+                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-vital-cyan/5 rounded-full blur-[100px] pointer-events-none opacity-0 group-hover:opacity-60 transition-opacity duration-700" />
 
                       <div className="h-full flex flex-col justify-between relative z-10">
                         {/* Top Row */}
                         <div className="flex justify-between items-start">
-                          <UploadCloud
-                            size={28}
-                            className="text-gray-500 group-hover:text-vital-cyan transition-colors duration-300"
-                          />
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-vital-cyan/60 animate-pulse shadow-[0_0_10px_rgba(42,212,212,0.5)]" />
+                            <span className="font-mono text-[9px] text-vital-cyan/80 tracking-[0.2em] uppercase">
+                              Ready
+                            </span>
+                          </div>
                           <span className="font-mono text-[8px] text-gray-500 border border-white/[0.06] px-2.5 py-1 rounded-lg tracking-widest uppercase">
                             Secure Upload
                           </span>
                         </div>
 
-                        {/* Center Content */}
-                        <div className="text-center space-y-5 py-10">
-                          <div
-                            className={`cell-membrane w-28 h-28 mx-auto rounded-2xl flex items-center justify-center ${
-                              stagingFiles.length > 0
-                                ? "border-vital-cyan bg-vital-cyan/[0.05]"
-                                : ""
-                            }`}
-                          >
-                            {stagingFiles.length > 0 ? (
-                              <Sparkles size={32} className="text-vital-cyan" />
-                            ) : (
-                              <Plus
-                                size={32}
-                                className="text-gray-200 group-hover:text-vital-cyan transition-colors duration-300"
-                              />
-                            )}
+                        {/* Center Content - Enhanced Scanner Style */}
+                        <div className="flex-1 flex flex-col items-center justify-center py-8">
+                          {/* The Portal Upload Target */}
+                          <div className="relative w-44 h-44 flex items-center justify-center">
+                            {/* Outer Scanner Ring */}
+                            <div
+                              className={`absolute inset-0 rounded-full border border-dashed transition-all duration-500 ${
+                                stagingFiles.length > 0
+                                  ? "border-vital-cyan/40"
+                                  : "border-white/10 group-hover:border-vital-cyan/30"
+                              }`}
+                            />
+
+                            {/* Spinning Scanner Animation - Outer */}
+                            <div className="absolute inset-0 rounded-full border-2 border-t-transparent border-vital-cyan/40 opacity-0 group-hover:opacity-100 transition-opacity duration-500 animate-[spin_4s_linear_infinite]" />
+
+                            {/* Spinning Scanner Animation - Inner */}
+                            <div className="absolute inset-[16px] rounded-full border border-b-transparent border-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-700 animate-[spin_6s_linear_infinite_reverse]" />
+
+                            {/* Inner Circle Background */}
+                            <div
+                              className={`absolute inset-[24px] rounded-full transition-all duration-500 ${
+                                stagingFiles.length > 0
+                                  ? "bg-vital-cyan/10 border border-vital-cyan/30"
+                                  : "bg-white/[0.02] border border-white/[0.06] group-hover:bg-vital-cyan/5 group-hover:border-vital-cyan/20"
+                              }`}
+                            />
+
+                            {/* Icon Container */}
+                            <div className="relative z-10 flex flex-col items-center transition-transform duration-500 group-hover:scale-110">
+                              {stagingFiles.length > 0 ? (
+                                <Sparkles
+                                  size={36}
+                                  className="text-vital-cyan animate-pulse"
+                                />
+                              ) : (
+                                <UploadCloud
+                                  size={36}
+                                  className="text-gray-400 group-hover:text-vital-cyan transition-colors duration-300"
+                                />
+                              )}
+                            </div>
                           </div>
-                          <div>
-                            <h3 className="font-serif text-3xl text-serum-white mb-2">
+
+                          {/* Instruction Text */}
+                          <div className="mt-8 text-center space-y-3">
+                            <h3 className="font-serif italic text-2xl text-serum-white">
                               {stagingFiles.length > 0
-                                ? `${stagingFiles.length} Sources Ready`
+                                ? `${stagingFiles.length} Sources Staged`
                                 : "Add Clinical Sources"}
                             </h3>
-                            <p className="font-sans text-[10px] uppercase tracking-[0.2em] text-gray-500">
-                              {stagingFiles.length > 0
-                                ? "Click to add more files"
-                                : "Drop files to begin synthesis"}
-                            </p>
+                            <div className="flex gap-3 justify-center text-[10px] font-mono tracking-wide text-gray-500 uppercase">
+                              <span>PDF</span>
+                              <span className="text-white/20">•</span>
+                              <span>TXT</span>
+                              <span className="text-white/20">•</span>
+                              <span>Images</span>
+                              <span className="text-white/20">•</span>
+                              <span>Audio</span>
+                              <span className="text-white/20">•</span>
+                              <span>Video</span>
+                            </div>
                           </div>
                         </div>
 
@@ -1351,27 +1436,29 @@ const App: React.FC = () => {
                           >
                             {stagingFiles.length > 0
                               ? `${stagingFiles.length} sources detected`
-                              : "Waiting for input"}
+                              : "awaiting clinical sources..."}
                           </div>
-                          <div>PDF · Images · Audio · Video</div>
+                          <div className="text-gray-600">
+                            synapse ready :: active
+                          </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Synthesize Button */}
+                    {/* Synthesize Button - Enhanced */}
                     <button
                       onClick={startDeepDiveStreaming}
                       disabled={stagingFiles.length === 0}
-                      className={`w-full mt-6 py-5 rounded-2xl font-sans font-semibold tracking-[0.1em] uppercase text-sm flex items-center justify-center gap-3 transition-all duration-500 ${
+                      className={`w-full mt-6 py-5 rounded-2xl font-mono font-bold tracking-[0.15em] uppercase text-sm flex items-center justify-center gap-3 transition-all duration-500 ${
                         stagingFiles.length > 0
-                          ? "bg-vital-cyan text-bio-void hover:shadow-[0_0_50px_rgba(42,212,212,0.35)] hover:scale-[1.01]"
+                          ? "bg-serum-white text-bio-void hover:shadow-[0_0_50px_rgba(255,255,255,0.25)] hover:scale-[1.01]"
                           : "bg-white/[0.02] text-gray-500 cursor-not-allowed border border-white/[0.04]"
                       }`}
                     >
                       {stagingFiles.length > 0 ? (
                         <>
-                          <Sparkles size={18} className="animate-pulse" />
-                          <span>Start Synthesis</span>
+                          <Zap size={18} className="animate-pulse" />
+                          <span>Synthesize Graph</span>
                         </>
                       ) : (
                         <span>Add Files to Begin</span>

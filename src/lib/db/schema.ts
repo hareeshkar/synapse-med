@@ -85,6 +85,7 @@ export interface ProfileRecord {
   theme?: "obsidian" | "clinical";
   specialties?: string[];
   learning_goals?: string;
+  api_key?: string; // Google Gemini API Key (BYOK - encrypted in browser storage)
   created_at: string;
   updated_at: string;
 }

@@ -1,18 +1,16 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="bg-[#030508]">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Synapse Med | Intelligence Environment</title>
+    <title>Synapse Med | Intelligence Perfusion</title>
 
     <!-- FONTS: The Voice of Clinical Authority -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <!-- Plus Jakarta Sans & Source Sans 3: Modern readable body fonts -->
-    <!-- DM Sans: Clean geometric headers -->
-    <!-- JetBrains Mono: Precision for clinical values -->
+    <!-- Cinzel: Roman Structure | Cormorant: Human History | Manrope: Scientific Clarity | JetBrains: Data -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600&family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600&family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap"
       rel="stylesheet"
     />
     <link
@@ -74,6 +72,7 @@
               fadeInUp: "fadeInUp 0.6s ease-out forwards",
               scaleIn: "scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards",
               subtlePulse: "subtlePulse 3s ease-in-out infinite",
+              fluidGlow: "fluidGlow 4s ease-in-out infinite",
             },
             keyframes: {
               glow: {
@@ -100,6 +99,17 @@
                 "0%, 100%": { opacity: "1", transform: "scale(1)" },
                 "50%": { opacity: "0.85", transform: "scale(1.01)" },
               },
+              /* Heart pulse + wave for origin cards */
+              heartPulse: {
+                "0%": { transform: "scale(1)", opacity: "1" },
+                "50%": { transform: "scale(1.08)", opacity: "0.95" },
+                "100%": { transform: "scale(1)", opacity: "1" },
+              },
+              heartWave: {
+                "0%": { transform: "scale(0.6)", opacity: "0.35" },
+                "50%": { transform: "scale(1.8)", opacity: "0.12" },
+                "100%": { transform: "scale(2.6)", opacity: "0" },
+              },
               fadeInUp: {
                 "0%": { opacity: "0", transform: "translateY(20px)" },
                 "100%": { opacity: "1", transform: "translateY(0)" },
@@ -107,6 +117,25 @@
               scaleIn: {
                 "0%": { opacity: "0", transform: "scale(0.95)" },
                 "100%": { opacity: "1", transform: "scale(1)" },
+              },
+              fluidGlow: {
+                "0%": { opacity: "0.4", transform: "translate(0, 0) scale(1)" },
+                "25%": {
+                  opacity: "0.7",
+                  transform: "translate(30px, -20px) scale(1.1)",
+                },
+                "50%": {
+                  opacity: "0.8",
+                  transform: "translate(-20px, 30px) scale(1.2)",
+                },
+                "75%": {
+                  opacity: "0.7",
+                  transform: "translate(-30px, -30px) scale(1.1)",
+                },
+                "100%": {
+                  opacity: "0.4",
+                  transform: "translate(0, 0) scale(1)",
+                },
               },
             },
           },
@@ -473,6 +502,65 @@
       .custom-scrollbar::-webkit-scrollbar-thumb:hover {
         background: rgba(42, 212, 212, 0.3);
       }
+      /* Heart pulse + expanding wave used in origin cards */
+      .heart-pulse {
+        animation: heartPulse 1.2s cubic-bezier(0.36, 0, 0.66, 1) infinite;
+        transform-origin: center;
+        color: #e05d5d;
+      }
+      .heart-wave {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 100%;
+        height: 100%;
+        border-radius: 9999px;
+        background: radial-gradient(
+          circle,
+          rgba(224, 93, 93, 0.4) 0%,
+          rgba(224, 93, 93, 0.15) 30%,
+          transparent 70%
+        );
+        pointer-events: none;
+        animation: heartWave 1.2s cubic-bezier(0.36, 0, 0.66, 1) infinite;
+        transform: translate(-50%, -50%) scale(0.5);
+        opacity: 0;
+      }
+      .heart-wave.delay {
+        animation-delay: 0.4s;
+      }
+      .heart-wave.delay-2 {
+        animation-delay: 0.8s;
+      }
+
+      @keyframes heartPulse {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        20% {
+          transform: scale(1.25);
+        }
+        40% {
+          transform: scale(1);
+        }
+        60% {
+          transform: scale(1.15);
+        }
+        80% {
+          transform: scale(1);
+        }
+      }
+      @keyframes heartWave {
+        0% {
+          transform: translate(-50%, -50%) scale(0.6);
+          opacity: 0.6;
+        }
+        100% {
+          transform: translate(-50%, -50%) scale(3.5);
+          opacity: 0;
+        }
+      }
     </style>
     <script type="importmap">
       {
@@ -489,13 +577,85 @@
       }
     </script>
     <link rel="stylesheet" href="/index.css" />
+
+    <!-- NATIVE PRELOADER: Shows instantly before React hydrates -->
+    <style>
+      /* Pre-React splash nucleus - disappears once React mounts */
+      #native-preloader {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        background: #030508;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: opacity 0.4s ease, visibility 0.4s ease;
+      }
+      #native-preloader.hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+      #native-preloader .nucleus {
+        width: 12px;
+        height: 12px;
+        background: #fff;
+        border-radius: 50%;
+        box-shadow: 0 0 15px rgba(42, 212, 212, 0.9),
+          0 0 40px rgba(42, 212, 212, 0.4);
+        animation: nucleus-pulse 1.4s ease-in-out infinite;
+      }
+      @keyframes nucleus-pulse {
+        0%,
+        100% {
+          transform: scale(1);
+          opacity: 0.8;
+        }
+        15% {
+          transform: scale(1.35);
+          opacity: 1;
+          box-shadow: 0 0 50px rgba(42, 212, 212, 0.85);
+        }
+        30% {
+          transform: scale(1);
+          opacity: 0.8;
+        }
+        45% {
+          transform: scale(1.15);
+          opacity: 0.9;
+        }
+        65% {
+          transform: scale(1);
+          opacity: 0.8;
+        }
+      }
+    </style>
   </head>
   <body>
+    <!-- Native preloader (visible before React) -->
+    <div id="native-preloader">
+      <div class="nucleus"></div>
+    </div>
+
     <!-- Film grain overlay for organic texture -->
     <div class="bio-grain"></div>
     <!-- Background container for WebGL shader (populated by React Portal) -->
     <div id="bio-background-root"></div>
     <div id="root"></div>
+
+    <!-- Hide native preloader once React mounts -->
+    <script>
+      // Observe DOM for React mount, then hide native preloader
+      const hideNativePreloader = () => {
+        const preloader = document.getElementById("native-preloader");
+        if (preloader) preloader.classList.add("hidden");
+      };
+      // Hide after a short delay to allow React splash to take over
+      window.addEventListener("load", () =>
+        setTimeout(hideNativePreloader, 100)
+      );
+    </script>
+
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

@@ -85,6 +85,7 @@ export function profileToRecord(
     theme: profile.theme,
     specialties: profile.specialties,
     learning_goals: profile.learningGoals,
+    api_key: profile.apiKey,
   };
 }
 
@@ -108,6 +109,7 @@ export function recordToProfile(
     theme: record.theme,
     specialties: record.specialties,
     learningGoals: record.learning_goals,
+    apiKey: record.api_key,
     createdAt: new Date(record.created_at).getTime(),
     updatedAt: new Date(record.updated_at).getTime(),
   };

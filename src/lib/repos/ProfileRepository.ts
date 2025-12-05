@@ -46,6 +46,7 @@ export const ProfileRepository = {
       theme: profile.theme ?? existing?.theme,
       specialties: profile.specialties ?? existing?.specialties,
       learning_goals: profile.learning_goals ?? existing?.learning_goals,
+      api_key: profile.api_key ?? existing?.api_key,
       created_at: existing?.created_at || now,
       updated_at: now,
     };
@@ -53,6 +54,30 @@ export const ProfileRepository = {
     await db.put("profile", record);
     console.log(`👤 [Profile] Saved: "${record.name}"`);
     return record;
+  },
+
+  /**
+   * Get the API key (convenience method)
+   */
+  async getApiKey(): Promise<string | undefined> {
+    const profile = await this.get();
+    return profile?.api_key;
+  },
+
+  /**
+   * Update only the API key (convenience method for settings)
+   */
+  async updateApiKey(apiKey: string): Promise<void> {
+    await this.save({ api_key: apiKey });
+    console.log("🔑 [Profile] API Key updated");
+  },
+
+  /**
+   * Check if API key is configured
+   */
+  async hasApiKey(): Promise<boolean> {
+    const apiKey = await this.getApiKey();
+    return !!apiKey && apiKey.startsWith("AIza");
   },
 
   /**

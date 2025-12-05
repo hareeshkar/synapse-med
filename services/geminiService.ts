@@ -8,14 +8,186 @@ import {
   UserProfile,
 } from "../types";
 import { embedTablesInMarkdown } from "../utils/tableFormatter";
+import { ProfileRepository } from "../src/lib/repos/ProfileRepository";
+
+// ===============================
+// CUSTOM ERROR CLASSES FOR BYOK
+// ===============================
+export class ApiKeyError extends Error {
+  constructor(
+    message: string,
+    public readonly code: "MISSING" | "INVALID" | "EXPIRED" | "QUOTA_EXCEEDED"
+  ) {
+    super(message);
+    this.name = "ApiKeyError";
+  }
+}
 
 export class GeminiService {
-  private ai: GoogleGenAI;
-  private apiKey: string;
+  // No longer store api key or client persistently
+  // Each request fetches the key dynamically from IndexedDB
 
   constructor() {
-    this.apiKey = process.env.API_KEY || "";
-    this.ai = new GoogleGenAI({ apiKey: this.apiKey });
+    // Empty constructor - we initialize per request now for BYOK
+  }
+
+  // ===============================
+  // BYOK: Dynamic Client Initialization
+  // ===============================
+
+  /**
+   * Get the authenticated GoogleGenAI client using the user's API key from IndexedDB.
+   * Throws ApiKeyError if no key is found or if the key appears invalid.
+   */
+  private async getClient(): Promise<GoogleGenAI> {
+    const apiKey = await ProfileRepository.getApiKey();
+
+    if (!apiKey) {
+      throw new ApiKeyError(
+        "No API Key found. Please add your Google Gemini API key in Settings.",
+        "MISSING"
+      );
+    }
+
+    // Basic validation: Gemini API keys start with "AIza"
+    if (!apiKey.startsWith("AIza")) {
+      throw new ApiKeyError(
+        "Invalid API Key format. Google Gemini API keys start with 'AIza'.",
+        "INVALID"
+      );
+    }
+
+    // Validate minimum length (Gemini keys are typically 39 characters)
+    if (apiKey.length < 35) {
+      throw new ApiKeyError(
+        "API Key appears to be incomplete. Please check and re-enter your key.",
+        "INVALID"
+      );
+    }
+
+    return new GoogleGenAI({ apiKey });
+  }
+
+  /**
+   * Validate the API key by making a minimal test request.
+   * Returns true if valid, throws ApiKeyError with specific message if not.
+   */
+  async validateApiKey(
+    apiKey?: string
+  ): Promise<{ valid: boolean; error?: string }> {
+    try {
+      const keyToTest = apiKey || (await ProfileRepository.getApiKey());
+
+      if (!keyToTest) {
+        return { valid: false, error: "No API key provided" };
+      }
+
+      if (!keyToTest.startsWith("AIza")) {
+        return {
+          valid: false,
+          error: "Invalid key format. Keys start with 'AIza'",
+        };
+      }
+
+      // Make a minimal API call to verify the key works
+      const ai = new GoogleGenAI({ apiKey: keyToTest });
+      const response = await ai.models.generateContent({
+        model: "gemini-2.0-flash",
+        contents: "Say 'OK' if you can read this.",
+        config: {
+          maxOutputTokens: 5,
+        },
+      });
+
+      // If we get here without throwing, the key is valid
+      console.log("✅ API Key validated successfully");
+      return { valid: true };
+    } catch (error: any) {
+      console.error("❌ API Key validation failed:", error.message);
+
+      // Parse specific error types
+      if (
+        error.message?.includes("API_KEY_INVALID") ||
+        error.message?.includes("invalid")
+      ) {
+        return {
+          valid: false,
+          error: "Invalid API key. Please check and re-enter.",
+        };
+      }
+      if (
+        error.message?.includes("quota") ||
+        error.message?.includes("RESOURCE_EXHAUSTED")
+      ) {
+        return {
+          valid: false,
+          error:
+            "API quota exceeded. Wait or check your Google AI Studio limits.",
+        };
+      }
+      if (
+        error.message?.includes("permission") ||
+        error.message?.includes("403")
+      ) {
+        return {
+          valid: false,
+          error:
+            "API key doesn't have permission. Enable the Gemini API in Google AI Studio.",
+        };
+      }
+
+      return {
+        valid: false,
+        error: error.message || "Unknown error validating key",
+      };
+    }
+  }
+
+  /**
+   * Handle API errors and convert them to user-friendly messages.
+   * Detects quota, rate limit, and authentication errors.
+   */
+  private handleApiError(error: any): never {
+    const message = error.message || String(error);
+
+    // Quota exceeded
+    if (message.includes("RESOURCE_EXHAUSTED") || message.includes("quota")) {
+      throw new ApiKeyError(
+        "API quota exceeded. Google's free tier has limits. Wait a bit or upgrade your plan at aistudio.google.com.",
+        "QUOTA_EXCEEDED"
+      );
+    }
+
+    // Rate limited
+    if (message.includes("RATE_LIMIT") || message.includes("429")) {
+      throw new ApiKeyError(
+        "Rate limit hit. Please wait a moment and try again. Free tier: 15 requests/minute.",
+        "QUOTA_EXCEEDED"
+      );
+    }
+
+    // Invalid key
+    if (
+      message.includes("API_KEY_INVALID") ||
+      message.includes("invalid") ||
+      message.includes("401")
+    ) {
+      throw new ApiKeyError(
+        "Your API key is invalid or expired. Please check and update it in Settings.",
+        "INVALID"
+      );
+    }
+
+    // Permission denied
+    if (message.includes("403") || message.includes("permission")) {
+      throw new ApiKeyError(
+        "Permission denied. Make sure Gemini API is enabled for your key at aistudio.google.com.",
+        "INVALID"
+      );
+    }
+
+    // Re-throw original error if not a known type
+    throw error;
   }
 
   // ===============================
@@ -554,7 +726,9 @@ export class GeminiService {
   // ===============================
   // Free tier uses implicit caching; no explicit cache creation needed
   async cacheNoteContext(note: AugmentedNote): Promise<string | undefined> {
-    if (!this.apiKey) return undefined;
+    // BYOK: Check if API key exists before proceeding
+    const apiKey = await ProfileRepository.getApiKey();
+    if (!apiKey) return undefined;
 
     console.log("✅ Using implicit caching (automatic on Gemini 2.5 models)");
     console.log("💡 Keep consistent prefixes in your prompts for cache hits");
@@ -585,7 +759,8 @@ export class GeminiService {
     graphNodes: KnowledgeNode[];
     graphLinks: { source: string; target: string; relationship: string }[];
   }> {
-    if (!this.apiKey) throw new Error("API Key missing");
+    // BYOK: Get dynamic client (will throw ApiKeyError if no key)
+    const ai = await this.getClient();
 
     const parts: any[] = [];
 
@@ -870,6 +1045,9 @@ Output: JSON ONLY (metadata + graph structure)
         console.log("   📊 Separate API call (own 64K output token budget)");
         console.log("═══════════════════════════════════════");
 
+        // Get the dynamic client (BYOK)
+        const ai = await this.getClient();
+
         let fullText = "";
         let thoughtsCapture: string[] = [];
         let currentSubStage: "extracting" | "verifying" | "graphing" =
@@ -885,139 +1063,150 @@ Output: JSON ONLY (metadata + graph structure)
           ? contextPrompt + "\n\n" + systemPrompt
           : systemPrompt;
 
-        const stream = await this.ai.models.generateContentStream({
-          model: "gemini-2.5-flash",
-          contents: { parts: parts },
-          config: {
-            tools: [{ googleSearch: {} }],
-            systemInstruction: fullSystemPrompt,
-            temperature: 0.3,
-            thinkingConfig: {
-              thinkingBudget: 12288,
-              includeThoughts: true,
+        try {
+          const stream = await ai.models.generateContentStream({
+            model: "gemini-2.5-flash",
+            contents: { parts: parts },
+            config: {
+              tools: [{ googleSearch: {} }],
+              systemInstruction: fullSystemPrompt,
+              temperature: 0.3,
+              thinkingConfig: {
+                thinkingBudget: 12288,
+                includeThoughts: true,
+              },
             },
-          },
-        });
+          });
 
-        for await (const chunk of stream) {
-          if (chunk.candidates?.[0]?.content?.parts) {
-            for (const part of chunk.candidates[0].content.parts) {
-              const partAny = part as any;
+          for await (const chunk of stream) {
+            if (chunk.candidates?.[0]?.content?.parts) {
+              for (const part of chunk.candidates[0].content.parts) {
+                const partAny = part as any;
 
-              if (partAny.thought === true) {
-                const thoughtText = partAny.text || "";
-                if (thoughtText && thoughtText.trim()) {
-                  thoughtsCapture.push(thoughtText);
-                  if (onThought) {
-                    onThought(thoughtText);
-                  }
+                if (partAny.thought === true) {
+                  const thoughtText = partAny.text || "";
+                  if (thoughtText && thoughtText.trim()) {
+                    thoughtsCapture.push(thoughtText);
+                    if (onThought) {
+                      onThought(thoughtText);
+                    }
 
-                  const lowerThought = thoughtText.toLowerCase();
+                    const lowerThought = thoughtText.toLowerCase();
 
-                  if (
-                    !hasSeenSearchContent &&
-                    (lowerThought.includes("search") ||
-                      lowerThought.includes("google") ||
-                      lowerThought.includes("verify") ||
-                      lowerThought.includes("cross-reference") ||
-                      lowerThought.includes("looking up"))
-                  ) {
-                    hasSeenSearchContent = true;
-                    if (currentSubStage === "extracting") {
-                      currentSubStage = "verifying";
-                      if (onSubStage) onSubStage("verifying");
+                    if (
+                      !hasSeenSearchContent &&
+                      (lowerThought.includes("search") ||
+                        lowerThought.includes("google") ||
+                        lowerThought.includes("verify") ||
+                        lowerThought.includes("cross-reference") ||
+                        lowerThought.includes("looking up"))
+                    ) {
+                      hasSeenSearchContent = true;
+                      if (currentSubStage === "extracting") {
+                        currentSubStage = "verifying";
+                        if (onSubStage) onSubStage("verifying");
+                      }
+                    }
+
+                    if (
+                      !hasSeenGraphContent &&
+                      (lowerThought.includes("graph") ||
+                        lowerThought.includes("node") ||
+                        lowerThought.includes("link") ||
+                        lowerThought.includes("constellation") ||
+                        lowerThought.includes("json"))
+                    ) {
+                      hasSeenGraphContent = true;
+                      if (currentSubStage !== "graphing") {
+                        currentSubStage = "graphing";
+                        if (onSubStage) onSubStage("graphing");
+                      }
                     }
                   }
+                } else if (part.text && !partAny.thought) {
+                  fullText += part.text;
 
                   if (
                     !hasSeenGraphContent &&
-                    (lowerThought.includes("graph") ||
-                      lowerThought.includes("node") ||
-                      lowerThought.includes("link") ||
-                      lowerThought.includes("constellation") ||
-                      lowerThought.includes("json"))
+                    fullText.includes('"graphNodes"')
                   ) {
                     hasSeenGraphContent = true;
-                    if (currentSubStage !== "graphing") {
-                      currentSubStage = "graphing";
-                      if (onSubStage) onSubStage("graphing");
-                    }
+                    currentSubStage = "graphing";
+                    if (onSubStage) onSubStage("graphing");
                   }
                 }
-              } else if (part.text && !partAny.thought) {
-                fullText += part.text;
+              }
+            }
 
-                if (!hasSeenGraphContent && fullText.includes('"graphNodes"')) {
-                  hasSeenGraphContent = true;
-                  currentSubStage = "graphing";
-                  if (onSubStage) onSubStage("graphing");
-                }
+            if (
+              chunk.candidates?.[0]?.groundingMetadata &&
+              !hasSeenSearchContent
+            ) {
+              hasSeenSearchContent = true;
+              if (currentSubStage === "extracting") {
+                currentSubStage = "verifying";
+                if (onSubStage) onSubStage("verifying");
               }
             }
           }
 
-          if (
-            chunk.candidates?.[0]?.groundingMetadata &&
-            !hasSeenSearchContent
-          ) {
-            hasSeenSearchContent = true;
-            if (currentSubStage === "extracting") {
-              currentSubStage = "verifying";
-              if (onSubStage) onSubStage("verifying");
-            }
+          const parsed = this.extractJson(fullText || "{}");
+
+          if (!parsed || typeof parsed !== "object") {
+            throw new Error("Phase 1 failed: Invalid JSON response structure");
           }
+
+          if (!parsed.title) {
+            parsed.title = topicName;
+          }
+
+          if (!parsed.graphNodes || !Array.isArray(parsed.graphNodes)) {
+            throw new Error(
+              "Phase 1 failed: No knowledge graph nodes generated"
+            );
+          }
+
+          const validNodeIds = new Set(parsed.graphNodes.map((n: any) => n.id));
+
+          // 🔧 FIX: Normalize link properties - AI may return 'label' but we need 'relationship'
+          const validLinks = (parsed.graphLinks || [])
+            .filter(
+              (l: any) =>
+                validNodeIds.has(l.source) && validNodeIds.has(l.target)
+            )
+            .map((l: any) => ({
+              source: l.source,
+              target: l.target,
+              relationship: l.relationship || l.label || "relates to", // Handle both property names
+            }));
+
+          console.log("✅ PHASE 1 Complete");
+          console.log(
+            `   📊 Nodes: ${parsed.graphNodes.length} | Links: ${validLinks.length}`
+          );
+          console.log(`   📝 Phase 1 used its own 64K token budget`);
+          console.log("═══════════════════════════════════════\n");
+
+          return {
+            title: parsed.title || topicName,
+            summary: parsed.summary || "",
+            eli5Analogy: parsed.eli5Analogy,
+            pearls: (parsed.pearls || []).map((p: any) => ({
+              type: p.type as
+                | "gap-filler"
+                | "exam-tip"
+                | "red-flag"
+                | "fact-check",
+              content: p.content,
+              citation: p.citation,
+            })),
+            graphNodes: parsed.graphNodes || [],
+            graphLinks: validLinks,
+          };
+        } catch (error: any) {
+          // Handle API errors with user-friendly messages
+          this.handleApiError(error);
         }
-
-        const parsed = this.extractJson(fullText || "{}");
-
-        if (!parsed || typeof parsed !== "object") {
-          throw new Error("Phase 1 failed: Invalid JSON response structure");
-        }
-
-        if (!parsed.title) {
-          parsed.title = topicName;
-        }
-
-        if (!parsed.graphNodes || !Array.isArray(parsed.graphNodes)) {
-          throw new Error("Phase 1 failed: No knowledge graph nodes generated");
-        }
-
-        const validNodeIds = new Set(parsed.graphNodes.map((n: any) => n.id));
-
-        // 🔧 FIX: Normalize link properties - AI may return 'label' but we need 'relationship'
-        const validLinks = (parsed.graphLinks || [])
-          .filter(
-            (l: any) => validNodeIds.has(l.source) && validNodeIds.has(l.target)
-          )
-          .map((l: any) => ({
-            source: l.source,
-            target: l.target,
-            relationship: l.relationship || l.label || "relates to", // Handle both property names
-          }));
-
-        console.log("✅ PHASE 1 Complete");
-        console.log(
-          `   📊 Nodes: ${parsed.graphNodes.length} | Links: ${validLinks.length}`
-        );
-        console.log(`   📝 Phase 1 used its own 64K token budget`);
-        console.log("═══════════════════════════════════════\n");
-
-        return {
-          title: parsed.title || topicName,
-          summary: parsed.summary || "",
-          eli5Analogy: parsed.eli5Analogy,
-          pearls: (parsed.pearls || []).map((p: any) => ({
-            type: p.type as
-              | "gap-filler"
-              | "exam-tip"
-              | "red-flag"
-              | "fact-check",
-            content: p.content,
-            citation: p.citation,
-          })),
-          graphNodes: parsed.graphNodes || [],
-          graphLinks: validLinks,
-        };
       },
       3,
       1000
@@ -1043,7 +1232,7 @@ Output: JSON ONLY (metadata + graph structure)
     },
     userProfile?: UserProfile
   ): Promise<{ markdown: string; sources: Source[] }> {
-    if (!this.apiKey) throw new Error("API Key missing");
+    // API key is fetched dynamically via getClient()
 
     const parts: any[] = [];
 
@@ -1753,6 +1942,9 @@ DO NOT START WITH:
         console.log("   🔍 Google Search enabled (1M queries/day limit)");
         console.log("═══════════════════════════════════════");
 
+        // Get the dynamic client (BYOK)
+        const ai = await this.getClient();
+
         let fullMarkdown = previousContent || "";
         let groundingMetadata: any = null;
         let chunkCount = 0;
@@ -1853,7 +2045,7 @@ DO NOT START WITH:
             ? contextPrompt + "\n\n" + systemPrompt
             : systemPrompt;
 
-          const stream = await this.ai.models.generateContentStream({
+          const stream = await ai.models.generateContentStream({
             model: "gemini-2.5-flash",
             contents: { parts: parts },
             config: {
@@ -1998,7 +2190,7 @@ DO NOT START WITH:
             // Reset markdown for retry
             fullMarkdown = previousContent || "";
 
-            const stream = await this.ai.models.generateContentStream({
+            const stream = await ai.models.generateContentStream({
               model: "gemini-2.5-flash",
               contents: { parts: parts },
               config: {
@@ -2045,6 +2237,12 @@ DO NOT START WITH:
               throw emptyError;
             }
           } else {
+            // Check for API key errors and convert to user-friendly messages
+            try {
+              this.handleApiError(e);
+            } catch (apiKeyError) {
+              throw apiKeyError;
+            }
             // Re-throw all other errors (including EMPTY_CONTENT) for UI to handle
             throw e;
           }
@@ -2322,7 +2520,14 @@ DO NOT START WITH:
     }) => void,
     onThought?: (thought: string) => void
   ): Promise<AugmentedNote> {
-    if (!this.apiKey) throw new Error("API Key missing");
+    // BYOK: Validate API key exists before starting full generation
+    const apiKey = await ProfileRepository.getApiKey();
+    if (!apiKey) {
+      throw new ApiKeyError(
+        "No API Key found. Please add your Google Gemini API key in Settings.",
+        "MISSING"
+      );
+    }
 
     try {
       console.log(`📁 Starting with ${files.length} uploaded files`);

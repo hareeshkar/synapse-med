@@ -1,5 +1,19 @@
 import { GoogleGenAI, Content } from "@google/genai";
 import { UserProfile, KnowledgeNode, ExamGoal } from "../types";
+import { ProfileRepository } from "../src/lib/repos/ProfileRepository";
+
+// ===============================
+// CUSTOM ERROR CLASS FOR BYOK
+// ===============================
+export class ChatApiKeyError extends Error {
+  constructor(
+    message: string,
+    public readonly code: "MISSING" | "INVALID" | "EXPIRED" | "QUOTA_EXCEEDED"
+  ) {
+    super(message);
+    this.name = "ChatApiKeyError";
+  }
+}
 
 // ===============================
 // CHAT MESSAGE & QUIZ TYPES
@@ -228,14 +242,83 @@ export const EXAM_STRATEGIES: Record<
 // Polymorphic AI System - Adaptive Personas Per Mode
 // ===============================
 export class GeminiChatService {
-  private ai: GoogleGenAI;
-  private apiKey: string;
+  // BYOK: No longer store api key or client persistently
+  // Each request fetches the key dynamically from IndexedDB
+
   // Cache for extracted topics to avoid re-parsing same content
   private topicsCache: Map<string, QuizTopic[]> = new Map();
 
   constructor() {
-    this.apiKey = process.env.API_KEY || "";
-    this.ai = new GoogleGenAI({ apiKey: this.apiKey });
+    // Empty constructor - we initialize per request now for BYOK
+  }
+
+  // ===============================
+  // BYOK: Dynamic Client Initialization
+  // ===============================
+
+  /**
+   * Get the authenticated GoogleGenAI client using the user's API key from IndexedDB.
+   * Throws ChatApiKeyError if no key is found or if the key appears invalid.
+   */
+  private async getClient(): Promise<GoogleGenAI> {
+    const apiKey = await ProfileRepository.getApiKey();
+
+    if (!apiKey) {
+      throw new ChatApiKeyError(
+        "No API Key found. Please add your Google Gemini API key in Settings.",
+        "MISSING"
+      );
+    }
+
+    // Basic validation: Gemini API keys start with "AIza"
+    if (!apiKey.startsWith("AIza")) {
+      throw new ChatApiKeyError(
+        "Invalid API Key format. Google Gemini API keys start with 'AIza'.",
+        "INVALID"
+      );
+    }
+
+    return new GoogleGenAI({ apiKey });
+  }
+
+  /**
+   * Handle API errors and convert to user-friendly messages
+   */
+  private handleApiError(error: any): never {
+    const message = error?.message?.toLowerCase() || "";
+    const status = error?.status || error?.httpStatus;
+
+    if (
+      message.includes("api key not valid") ||
+      message.includes("invalid api key") ||
+      status === 400
+    ) {
+      throw new ChatApiKeyError(
+        "Your API key is invalid. Please check it in Settings.",
+        "INVALID"
+      );
+    }
+
+    if (
+      message.includes("quota") ||
+      message.includes("rate limit") ||
+      status === 429
+    ) {
+      throw new ChatApiKeyError(
+        "API quota exceeded. Please wait a moment or check your Google Cloud console.",
+        "QUOTA_EXCEEDED"
+      );
+    }
+
+    if (message.includes("expired") || message.includes("revoked")) {
+      throw new ChatApiKeyError(
+        "Your API key has expired or been revoked. Please generate a new one.",
+        "EXPIRED"
+      );
+    }
+
+    // Re-throw unknown errors
+    throw error;
   }
 
   /**
@@ -1188,9 +1271,8 @@ TONE GUARDRAILS (Stay Authentic):
     onChunk: (text: string) => void,
     customSystemInstruction?: string
   ): Promise<string> {
-    if (!this.apiKey) {
-      throw new Error("API Key missing. Please configure your Gemini API key.");
-    }
+    // BYOK: Get dynamic client (will throw ChatApiKeyError if no key)
+    const ai = await this.getClient();
 
     const contents: Content[] = history
       .filter((msg) => msg.text && msg.text.trim() && !msg.isThinking)
@@ -1219,7 +1301,7 @@ TONE GUARDRAILS (Stay Authentic):
     let attempt = 0;
     while (attempt < maxAttempts) {
       try {
-        const response = await this.ai.models.generateContentStream({
+        const response = await ai.models.generateContentStream({
           model: "gemini-2.5-flash",
           config: {
             systemInstruction: systemInstruction,
@@ -1347,9 +1429,8 @@ TONE GUARDRAILS (Stay Authentic):
     onThinking?: (text: string) => void,
     onChunk?: (text: string) => void
   ): Promise<{ text: string; isCorrect: boolean }> {
-    if (!this.apiKey) {
-      throw new Error("API Key missing");
-    }
+    // BYOK: Get dynamic client (will throw ChatApiKeyError if no key)
+    const ai = await this.getClient();
 
     const examGoal = this.getEffectiveExamGoal(userProfile);
     const examStrategy =
@@ -1394,7 +1475,7 @@ Provide feedback that deepens their clinical reasoning and pattern recognition.`
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        const response = await this.ai.models.generateContent({
+        const response = await ai.models.generateContent({
           model: "gemini-2.5-flash",
           config: {
             systemInstruction,
@@ -1604,9 +1685,8 @@ Don't worry - this is a great question to master! 💪`,
     onThinking?: (text: string) => void,
     onChunk?: (text: string) => void
   ): Promise<string> {
-    if (!this.apiKey) {
-      throw new Error("API Key missing");
-    }
+    // BYOK: Get dynamic client (will throw ChatApiKeyError if no key)
+    const ai = await this.getClient();
 
     const examGoal = this.getEffectiveExamGoal(userProfile);
 
@@ -1644,7 +1724,7 @@ Remember: The goal is to BUILD their confidence and understanding, not just tell
     let attempt = 0;
     while (attempt < maxAttempts) {
       try {
-        const responseStream = await this.ai.models.generateContentStream({
+        const responseStream = await ai.models.generateContentStream({
           model: "gemini-2.5-flash",
           config: {
             temperature: 0.8,

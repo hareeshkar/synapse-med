@@ -137,6 +137,7 @@ export interface UserProfile {
   theme?: "obsidian" | "clinical"; // UI preference
   specialties?: string[]; // e.g., ["Cardiology", "Nephrology"]
   learningGoals?: string; // Free-text learning objectives
+  apiKey?: string; // Google Gemini API Key (BYOK - stored locally, never sent to our servers)
   createdAt: number; // Timestamp
   updatedAt: number; // Timestamp
 }
