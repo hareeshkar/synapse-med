@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import ReactDOM from "react-dom";
 import {
   UserProfile,
@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import BioBackground from "./BioBackground";
 import { GeminiService } from "../services/geminiService";
+import { isSpecialName, AKSHAYA_BIRTHDAY } from "../utils/specialNameUtils";
 
 interface Props {
   onComplete: (profile: UserProfile) => void;
@@ -215,6 +216,31 @@ const EXAM_GOALS: {
   },
 ];
 
+// ═══════════════════════════════════════════════════════════════════════════
+// SPECIAL NAME STYLING - For Akshaya ♡
+// ═══════════════════════════════════════════════════════════════════════════
+// isSpecialName is imported from ../utils/specialNameUtils
+
+const StyledName: React.FC<{ name: string; className?: string }> = ({
+  name,
+  className = "",
+}) => {
+  if (isSpecialName(name)) {
+    const firstName = name.split(" ")[0];
+    return (
+      <span className={`relative inline-block ${className}`}>
+        <span className="font-serif italic text-tissue-rose bg-gradient-to-r from-tissue-rose via-pink-400 to-tissue-rose bg-clip-text text-transparent animate-pulse drop-shadow-[0_0_8px_rgba(244,114,182,0.6)]">
+          {firstName}
+        </span>
+        <span className="absolute -top-1 -right-3 text-tissue-rose/60 text-[10px]">
+          ♡
+        </span>
+      </span>
+    );
+  }
+  return <span className={className}>{name.split(" ")[0]}</span>;
+};
+
 const Onboarding: React.FC<Props> = ({
   onComplete,
   existingProfile,
@@ -224,6 +250,10 @@ const Onboarding: React.FC<Props> = ({
   const [step, setStep] = useState(1);
   const totalSteps = 5; // Added API key step
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Akshaya name detection with animation trigger
+  const [isAkshayaDetected, setIsAkshayaDetected] = useState(false);
+  const [prevName, setPrevName] = useState("");
 
   // API Key validation state
   const [isValidatingKey, setIsValidatingKey] = useState(false);
@@ -301,6 +331,26 @@ const Onboarding: React.FC<Props> = ({
     });
   };
 
+  // Detect Akshaya name - trigger cinematic animation and auto-set birthday ♡
+  useEffect(() => {
+    const currentName = profile.name || "";
+    const wasSpecial = isSpecialName(prevName);
+    const isNowSpecial = isSpecialName(currentName);
+
+    if (!wasSpecial && isNowSpecial && !isAkshayaDetected) {
+      // Name just changed to Akshaya — trigger animation & auto-set birthday
+      setIsAkshayaDetected(true);
+      // Auto-set Akshaya's birthday - a little touch that says "I know you" ♡
+      if (!profile.birthday) {
+        setProfile((prev) => ({ ...prev, birthday: AKSHAYA_BIRTHDAY }));
+      }
+    } else if (!isNowSpecial && isAkshayaDetected) {
+      // Name is no longer Akshaya
+      setIsAkshayaDetected(false);
+    }
+    setPrevName(currentName);
+  }, [profile.name, prevName, isAkshayaDetected, profile.birthday]);
+
   const isEditMode = mode === "edit";
 
   return (
@@ -310,6 +360,56 @@ const Onboarding: React.FC<Props> = ({
         <BioBackground />,
         document.getElementById("bio-background-root") || document.body
       )}
+
+      {/* Cinematic Akshaya Detection Animation Overlay */}
+      {isAkshayaDetected && (
+        <div className="fixed inset-0 z-40 pointer-events-none">
+          <style>{`
+            @keyframes cinematicFadeIn {
+              0% {
+                opacity: 0;
+                background: rgba(0, 0, 0, 0);
+                backdrop-filter: blur(0px);
+              }
+              40% {
+                opacity: 0.6;
+                background: rgba(0, 0, 0, 0.3);
+                backdrop-filter: blur(10px);
+              }
+              100% {
+                opacity: 0;
+                background: rgba(0, 0, 0, 0);
+                backdrop-filter: blur(0px);
+              }
+            }
+            
+            @keyframes glowPulse {
+              0% {
+                box-shadow: 0 0 0 0 rgba(244, 114, 182, 0.4);
+                opacity: 0;
+              }
+              50% {
+                opacity: 1;
+              }
+              100% {
+                box-shadow: 0 0 60px 30px rgba(244, 114, 182, 0);
+                opacity: 0;
+              }
+            }
+            
+            .akshaya-fade {
+              animation: cinematicFadeIn 2.5s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+            }
+            
+            .akshaya-glow {
+              animation: glowPulse 2.5s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+            }
+          `}</style>
+          <div className="akshaya-fade absolute inset-0" />
+          <div className="akshaya-glow absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full pointer-events-none" />
+        </div>
+      )}
+
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-transparent text-serum-white overflow-hidden">
         <div className="relative w-full max-w-xl mx-6 z-10">
           {/* Header */}
@@ -361,9 +461,14 @@ const Onboarding: React.FC<Props> = ({
                     Step 02
                   </p>
                   <h2 className="text-2xl font-serif font-light tracking-tight text-serum-white transition-all duration-700 ease-out">
-                    {profile.name
-                      ? `Let's make this yours, ${profile.name.split(" ")[0]}`
-                      : "Your Identity"}
+                    {profile.name ? (
+                      <>
+                        Let's make this yours,{" "}
+                        <StyledName name={profile.name} />
+                      </>
+                    ) : (
+                      "Your Identity"
+                    )}
                   </h2>
                   <p className="text-gray-500 text-sm font-sans mt-2 transition-all duration-500 ease-out">
                     {profile.name
@@ -434,22 +539,42 @@ const Onboarding: React.FC<Props> = ({
                       onChange={(e) =>
                         setProfile({ ...profile, name: e.target.value })
                       }
-                      className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:border-clinical-cyan/50 focus:outline-none transition-colors"
+                      className={`w-full bg-white/5 border rounded-xl py-3 pl-10 pr-4 focus:outline-none transition-all duration-300 font-serif italic ${
+                        isSpecialName(profile.name)
+                          ? "border-tissue-rose/50 focus:border-tissue-rose/70 focus:shadow-[0_0_12px_rgba(244,114,182,0.25)] text-tissue-rose"
+                          : "border-white/10 text-white focus:border-clinical-cyan/50 focus:shadow-vital-cyan/5"
+                      }`}
                     />
                   </div>
                 </div>
 
                 {/* Birthday */}
                 <div>
-                  <label className="text-[10px] uppercase text-gray-500 font-semibold tracking-wider mb-2 block flex items-center gap-2">
+                  <label
+                    className={`text-[10px] uppercase font-semibold tracking-wider mb-2 block flex items-center gap-2 ${
+                      isSpecialName(profile.name)
+                        ? "text-tissue-rose/70"
+                        : "text-gray-500"
+                    }`}
+                  >
                     When's your birthday?{" "}
-                    <span className="text-gray-500 normal-case">
-                      (we'll remember)
-                    </span>
+                    {isSpecialName(profile.name) ? (
+                      <span className="text-tissue-rose/60 normal-case font-serif italic">
+                        (I already know ♡)
+                      </span>
+                    ) : (
+                      <span className="text-gray-500 normal-case">
+                        (we'll remember)
+                      </span>
+                    )}
                   </label>
                   <div className="relative">
                     <Cake
-                      className="absolute top-3 left-3 text-gray-500"
+                      className={`absolute top-3 left-3 ${
+                        isSpecialName(profile.name)
+                          ? "text-tissue-rose/70"
+                          : "text-gray-500"
+                      }`}
                       size={18}
                     />
                     <input
@@ -458,7 +583,11 @@ const Onboarding: React.FC<Props> = ({
                       onChange={(e) =>
                         setProfile({ ...profile, birthday: e.target.value })
                       }
-                      className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:border-clinical-cyan/50 focus:outline-none transition-colors [color-scheme:dark]"
+                      className={`w-full bg-white/5 border rounded-xl py-3 pl-10 pr-4 focus:outline-none transition-all duration-300 font-serif italic [color-scheme:dark] ${
+                        isSpecialName(profile.name)
+                          ? "border-tissue-rose/30 text-tissue-rose focus:border-tissue-rose/70 focus:shadow-[0_0_12px_rgba(244,114,182,0.25)]"
+                          : "border-white/10 text-white focus:border-clinical-cyan/50 focus:shadow-vital-cyan/5"
+                      }`}
                     />
                   </div>
                 </div>
@@ -488,11 +617,14 @@ const Onboarding: React.FC<Props> = ({
                     Step 03
                   </p>
                   <h2 className="text-2xl font-serif font-light tracking-tight text-serum-white transition-all duration-700 ease-out">
-                    {profile.name
-                      ? `Alright ${
-                          profile.name.split(" ")[0]
-                        }, what's your clinical background?`
-                      : "Clinical Identity"}
+                    {profile.name ? (
+                      <>
+                        Alright <StyledName name={profile.name} />, what's your
+                        clinical background?
+                      </>
+                    ) : (
+                      "Clinical Identity"
+                    )}
                   </h2>
                   <p className="text-gray-500 text-sm font-sans mt-2 transition-all duration-500 ease-out">
                     {profile.name
@@ -586,9 +718,13 @@ const Onboarding: React.FC<Props> = ({
                     Step 04
                   </p>
                   <h2 className="text-2xl font-serif font-light tracking-tight text-serum-white transition-all duration-700 ease-out">
-                    {profile.name
-                      ? `How does ${profile.name.split(" ")[0]} learn best?`
-                      : "Learning Signature"}
+                    {profile.name ? (
+                      <>
+                        How does <StyledName name={profile.name} /> learn best?
+                      </>
+                    ) : (
+                      "Learning Signature"
+                    )}
                   </h2>
                   <p className="text-gray-500 text-sm font-sans mt-2 transition-all duration-500 ease-out">
                     {profile.name
@@ -683,11 +819,14 @@ const Onboarding: React.FC<Props> = ({
                     Step 05
                   </p>
                   <h2 className="text-2xl font-serif font-light tracking-tight text-serum-white transition-all duration-700 ease-out">
-                    {profile.name
-                      ? `Almost there, ${
-                          profile.name.split(" ")[0]
-                        }—what are you chasing?`
-                      : "Focus Areas"}
+                    {profile.name ? (
+                      <>
+                        Almost there, <StyledName name={profile.name} />
+                        —what are you chasing?
+                      </>
+                    ) : (
+                      "Focus Areas"
+                    )}
                   </h2>
                   <p className="text-gray-500 text-sm font-sans mt-2 transition-all duration-500 ease-out">
                     {profile.name

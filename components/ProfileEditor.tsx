@@ -38,6 +38,7 @@ import {
   Brain,
 } from "lucide-react";
 import { GeminiService } from "../services/geminiService";
+import { isSpecialName } from "../utils/specialNameUtils";
 
 interface Props {
   profile: UserProfile;
@@ -211,6 +212,27 @@ const EXAM_GOALS: {
     ],
   },
 ];
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SPECIAL NAME STYLING - For Akshaya ♡
+// ═══════════════════════════════════════════════════════════════════════════
+// isSpecialName is imported from ../utils/specialNameUtils
+
+const StyledNameDisplay: React.FC<{ name: string }> = ({ name }) => {
+  if (isSpecialName(name)) {
+    return (
+      <span className="relative inline-block">
+        <span className="font-serif italic text-tissue-rose bg-gradient-to-r from-tissue-rose via-pink-400 to-tissue-rose bg-clip-text text-transparent drop-shadow-[0_0_8px_rgba(244,114,182,0.6)]">
+          {name}
+        </span>
+        <span className="absolute -top-1 -right-4 text-tissue-rose/60 text-xs">
+          ♡
+        </span>
+      </span>
+    );
+  }
+  return <span>{name}</span>;
+};
 
 export const ProfileEditor: React.FC<Props> = ({
   profile,
@@ -429,11 +451,20 @@ export const ProfileEditor: React.FC<Props> = ({
                 />
               </div>
 
-              {/* Name Input - Premium Field */}
+              {/* Name Input - Premium Field with special styling for Akshaya */}
               <div className="space-y-3">
                 <label className="text-sm font-semibold text-serum-white flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-vital-cyan" />
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      isSpecialName(editedProfile.name)
+                        ? "bg-tissue-rose animate-pulse"
+                        : "bg-vital-cyan"
+                    }`}
+                  />
                   Display Name
+                  {isSpecialName(editedProfile.name) && (
+                    <span className="text-tissue-rose/60 text-xs ml-1">♡</span>
+                  )}
                 </label>
                 <input
                   type="text"
@@ -441,9 +472,18 @@ export const ProfileEditor: React.FC<Props> = ({
                   onChange={(e) =>
                     setEditedProfile({ ...editedProfile, name: e.target.value })
                   }
-                  className="w-full px-5 py-3.5 rounded-xl glass-panel text-serum-white placeholder:text-clinical-text/30 focus:border-vital-cyan focus:outline-none transition-all duration-500 ease-out focus:shadow-lg focus:shadow-vital-cyan/10"
+                  className={`w-full px-5 py-3.5 rounded-xl glass-panel placeholder:text-clinical-text/30 focus:outline-none transition-all duration-500 ease-out font-serif italic ${
+                    isSpecialName(editedProfile.name)
+                      ? "text-tissue-rose border-tissue-rose/40 focus:border-tissue-rose/70 focus:shadow-[0_0_16px_rgba(244,114,182,0.25)]"
+                      : "text-serum-white focus:border-vital-cyan focus:shadow-lg focus:shadow-vital-cyan/10"
+                  }`}
                   placeholder="Your name"
                 />
+                {isSpecialName(editedProfile.name) && (
+                  <p className="text-[10px] text-tissue-rose/60 italic font-serif">
+                    ✨ Made with love for you
+                  </p>
+                )}
               </div>
 
               {/* Birthday Input - Premium Field */}

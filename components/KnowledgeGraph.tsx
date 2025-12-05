@@ -334,12 +334,27 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
         .attr("fill", "url(#grid)")
         .style("pointer-events", "none");
 
-      // Zoom Behavior
+      // Zoom Behavior with touch support for tablets/iPads
       const zoom = d3
         .zoom<SVGSVGElement, unknown>()
         .scaleExtent([0.1, 4])
+        .touchable(() => true) // Enable touch events
+        .filter((event) => {
+          // Allow zoom for touch events (pinch) and mouse wheel
+          // Prevent zoom on double-click for better touch UX
+          if (event.type === "dblclick") return false;
+          if (
+            event.type === "touchstart" ||
+            event.type === "touchmove" ||
+            event.type === "touchend"
+          ) {
+            // Allow pinch-zoom (2 fingers)
+            return event.touches ? event.touches.length >= 2 : true;
+          }
+          return !event.button; // Standard mouse behavior
+        })
         .on("zoom", (e) => g.attr("transform", e.transform));
-      svg.call(zoom);
+      svg.call(zoom).on("dblclick.zoom", null); // Disable double-click zoom for touch devices
       zoomRef.current = zoom;
 
       // --- SIMULATION SETUP ---
@@ -439,7 +454,15 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
         .call(
           d3
             .drag<SVGGElement, GraphNode>()
+            .touchable(() => true) // Enable touch dragging for tablets
             .on("start", (event, d) => {
+              // Prevent default touch behavior for smoother dragging
+              if (event.sourceEvent) {
+                event.sourceEvent.stopPropagation();
+                if (event.sourceEvent.type?.startsWith("touch")) {
+                  event.sourceEvent.preventDefault();
+                }
+              }
               if (!event.active) simulation.alphaTarget(0.3).restart();
               d.fx = d.x;
               d.fy = d.y;
@@ -458,11 +481,28 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
             })
         );
 
-      // Node Interaction
+      // Node Interaction - Enhanced for touch devices
       node.on("click", (event, d) => {
         event.stopPropagation();
         setHoveredNode(null);
         // Use setTimeout to ensure state updates don't conflict
+        requestAnimationFrame(() => {
+          onNodeSelect(d.id === selectedNodeId ? null : d);
+        });
+      });
+
+      // Touch-specific tap handler for better tablet UX
+      node.on("touchend", (event, d) => {
+        // Only trigger on simple taps (no drag)
+        if (event.defaultPrevented) return;
+
+        const touch = event.changedTouches?.[0];
+        if (!touch) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        setHoveredNode(null);
+
         requestAnimationFrame(() => {
           onNodeSelect(d.id === selectedNodeId ? null : d);
         });
@@ -921,14 +961,66 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
       <div
         ref={containerRef}
         className={`relative overflow-hidden bg-[#030406] ${className}`}
+        style={{ touchAction: "none" }} // Prevent browser handling of touch gestures
       >
-        {/* CSS for flow animation + toolbar/search transitions */}
+        {/* CSS for flow animation + toolbar/search transitions + touch optimization */}
         <style>{`
             @keyframes flow {
                 to { stroke-dashoffset: -30; }
             }
+            @keyframes fadeInUp {
+                from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+                to { opacity: 1; transform: translateX(-50%) translateY(0); }
+            }
             .animate-flow {
                 animation: flow 1s linear infinite;
+            }
+            
+            /* Touch device detection via media query */
+            @media (pointer: coarse) {
+              .touch-device\\:block { display: block !important; }
+              .touch-device\\:hidden { display: none !important; }
+            }
+            @media (pointer: fine) {
+              .touch-device\\:block { display: none !important; }
+            }
+            
+            /* Touch optimization for tablets/iPads */
+            .kg-touch-target {
+              touch-action: manipulation;
+              -webkit-tap-highlight-color: transparent;
+            }
+            
+            /* Tablet-optimized font sizes and touch targets */
+            @media (pointer: coarse) {
+              .kg-filter-pill {
+                min-height: 44px;
+                min-width: 44px;
+                padding: 0.75rem 1rem;
+                font-size: 12px; /* Larger font for tablet readability */
+              }
+              .kg-control-btn {
+                min-height: 44px;
+                min-width: 44px;
+              }
+              
+              /* Increase overall text sizes for tablet readability */
+              .kg-tablet-text {
+                font-size: 13px;
+              }
+              .kg-tablet-text-sm {
+                font-size: 11px;
+              }
+              .kg-tablet-text-lg {
+                font-size: 15px;
+              }
+            }
+            
+            /* Better tooltip positioning on touch devices */
+            @media (hover: none) {
+              .kg-tooltip {
+                display: none;
+              }
             }
 
             /* smooth width/opacity transition and improved caret/line-height for search input */
@@ -1017,8 +1109,8 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
               </div>
             </div>
 
-            {/* Filter Pills */}
-            <div className="flex gap-2 flex-wrap max-w-[300px]">
+            {/* Filter Pills - Touch optimized for tablets */}
+            <div className="flex gap-2 flex-wrap max-w-[320px] md:max-w-[400px]">
               {[1, 2, 3, 4, 5, 6, 7].map((group) => {
                 const config = getGroupConfig(group);
                 const Icon = getGroupIcon(group);
@@ -1028,11 +1120,11 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
                     key={group}
                     onClick={() => toggleFilter(group)}
                     className={`
-                      flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-semibold tracking-wide uppercase transition-all border
+                      kg-filter-pill kg-touch-target flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-semibold tracking-wide uppercase transition-all border
                       ${
                         isActive
                           ? `bg-${config.color}/10 border-${config.color}/30 text-white shadow-[0_0_10px_rgba(0,0,0,0.3)]`
-                          : "bg-black/40 border-white/5 text-gray-300 hover:bg-white/5 hover:text-gray-200"
+                          : "bg-black/40 border-white/5 text-gray-300 hover:bg-white/5 hover:text-gray-200 active:bg-white/10"
                       }
                     `}
                     style={{
@@ -1043,10 +1135,13 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
                     }}
                   >
                     <Icon
-                      size={10}
+                      size={12}
                       className={isActive ? "text-white" : "text-gray-300"}
                     />
-                    {config.name}
+                    <span className="hidden sm:inline">{config.name}</span>
+                    <span className="sm:hidden">
+                      {config.name.split(" ")[0]}
+                    </span>
                   </button>
                 );
               })}
@@ -1057,7 +1152,7 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
           {/* Toolbar first, then search. On mobile stack vertically.
               When search expands, toolbar slides right with animation. */}
           <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3 pointer-events-auto justify-end">
-            {/* View Toggles: toolbar before search */}
+            {/* View Toggles: toolbar before search - Touch optimized */}
             <div
               ref={toolbarContainerRef}
               className="flex gap-2 items-center"
@@ -1065,14 +1160,14 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
             >
               <button
                 onClick={() => setShowLabels(!showLabels)}
-                className={`p-2 rounded-lg border transition-all ${
+                className={`kg-control-btn kg-touch-target p-2.5 rounded-lg border transition-all ${
                   showLabels
                     ? "bg-white/10 border-white/20 text-white"
-                    : "bg-black/40 border-white/5 text-gray-500"
+                    : "bg-black/40 border-white/5 text-gray-500 active:bg-white/10"
                 }`}
                 title="Toggle Labels (L)"
               >
-                {showLabels ? <Eye size={16} /> : <EyeOff size={16} />}
+                {showLabels ? <Eye size={18} /> : <EyeOff size={18} />}
               </button>
               <button
                 onClick={() => {
@@ -1105,10 +1200,10 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
                       );
                   }
                 }}
-                className="p-2 rounded-lg bg-black/40 border border-white/5 text-gray-300 hover:text-white hover:bg-white/10 transition-all"
+                className="kg-control-btn kg-touch-target p-2.5 rounded-lg bg-black/40 border border-white/5 text-gray-300 hover:text-white hover:bg-white/10 active:bg-white/15 transition-all"
                 title="Zoom In"
               >
-                <ZoomIn size={16} />
+                <ZoomIn size={18} />
               </button>
               <button
                 onClick={() => {
@@ -1141,10 +1236,10 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
                       );
                   }
                 }}
-                className="p-2 rounded-lg bg-black/40 border border-white/5 text-gray-300 hover:text-white hover:bg-white/10 transition-all"
+                className="kg-control-btn kg-touch-target p-2.5 rounded-lg bg-black/40 border border-white/5 text-gray-300 hover:text-white hover:bg-white/10 active:bg-white/15 transition-all"
                 title="Zoom Out"
               >
-                <ZoomOut size={16} />
+                <ZoomOut size={18} />
               </button>
               <button
                 onClick={() => {
@@ -1155,10 +1250,10 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
                       .call(zoomRef.current.transform, d3.zoomIdentity);
                   }
                 }}
-                className="p-2 rounded-lg bg-black/40 border border-white/5 text-gray-300 hover:text-white hover:bg-white/10 transition-all"
+                className="kg-control-btn kg-touch-target p-2.5 rounded-lg bg-black/40 border border-white/5 text-gray-300 hover:text-white hover:bg-white/10 active:bg-white/15 transition-all"
                 title="Reset View"
               >
-                <RotateCcw size={16} />
+                <RotateCcw size={18} />
               </button>
             </div>
 
@@ -1229,37 +1324,26 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
           }}
         />
 
-        {/* Bottom Legend/Hint */}
-        <div className="absolute bottom-4 left-0 right-0 flex justify-center pointer-events-none">
-          <div className="bg-black/60 backdrop-blur-md border border-white/5 px-4 py-2 rounded-full flex items-center gap-4 text-[10px] text-gray-500">
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-clinical-cyan"></span>
-              Core
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-clinical-rose"></span>
-              Pathology
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-clinical-purple"></span>
-              Meds
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-clinical-teal"></span>
-              Anatomy
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-clinical-amber"></span>
-              Physiology
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-blue-400"></span>
-              Diagnostic
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-orange-400"></span>
-              Clinical
-            </span>
+        {/* Select Node Hint - Positioned better */}
+        {!selectedNodeId && (
+          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 glass-slide border border-white/[0.06] px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-4 animate-[fadeInUp_0.5s_ease-out_1s_both] pointer-events-none">
+            <div className="flex items-center gap-3 text-gray-400">
+              <div className="w-3 h-3 rounded-full bg-vital-cyan/60 animate-pulse" />
+              <span className="text-sm md:text-base font-medium">
+                Tap a node to explore
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Touch hint for tablet users - shows on touch devices */}
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none hidden touch-device:block">
+          <div className="bg-black/50 backdrop-blur-sm px-4 py-2 rounded-xl text-[10px] md:text-xs text-gray-500 font-mono flex items-center gap-3">
+            <span>Pinch to zoom</span>
+            <span className="w-1 h-1 rounded-full bg-gray-600" />
+            <span>Drag to pan</span>
+            <span className="w-1 h-1 rounded-full bg-gray-600" />
+            <span>Tap node to select</span>
           </div>
         </div>
       </div>

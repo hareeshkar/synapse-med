@@ -49,6 +49,7 @@ import {
   User,
   MessageSquare,
   BrainCircuit,
+  Package,
 } from "lucide-react";
 import KnowledgeGraph from "./components/KnowledgeGraph";
 import PodcastPlayer from "./components/PodcastPlayer";
@@ -56,6 +57,7 @@ import ThinkingModal from "./components/ThinkingModal";
 import NodeInspector from "./components/NodeInspector";
 import ChatInterface from "./components/ChatInterface";
 import BioBackground from "./components/BioBackground";
+import ExportModal from "./components/ExportModal";
 import { GeminiService } from "./services/geminiService";
 import {
   NoteRepository,
@@ -238,6 +240,11 @@ const App: React.FC = () => {
   // ===============================
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [selectedText, setSelectedText] = useState<string | null>(null);
+
+  // ===============================
+  // EXPORT MODAL STATE
+  // ===============================
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   // ===============================
   // THINKING MODAL STATE (Real-Time Streaming UI)
@@ -830,6 +837,47 @@ const App: React.FC = () => {
           <BioBackground />,
           document.getElementById("bio-background-root") || document.body
         )}
+
+      {/* Tablet Landscape Orientation Hint - Shows on tablets in portrait mode */}
+      <div className="fixed inset-0 z-[100] bg-bio-void/95 backdrop-blur-xl hidden portrait:flex md:portrait:flex lg:portrait:hidden items-center justify-center p-8">
+        <div className="text-center max-w-sm">
+          <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-vital-cyan/10 border border-vital-cyan/20 flex items-center justify-center">
+            <svg
+              width="40"
+              height="40"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              className="text-vital-cyan animate-pulse"
+            >
+              <rect x="4" y="2" width="16" height="20" rx="2" />
+              <path d="M12 18h.01" />
+              <path d="M8 22h8" strokeDasharray="2 2" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-serif italic text-serum-white mb-3">
+            Rotate for Best Experience
+          </h2>
+          <p className="text-gray-400 text-sm leading-relaxed mb-6">
+            Synapse Med works beautifully in{" "}
+            <span className="text-vital-cyan font-semibold">
+              landscape mode
+            </span>{" "}
+            on tablets. Please rotate your iPad or tablet horizontally.
+          </p>
+          <div className="flex items-center justify-center gap-2 text-[11px] text-gray-500 font-mono">
+            <span className="w-8 h-5 border border-gray-500 rounded-sm flex items-center justify-center">
+              <span className="w-1 h-1 bg-gray-500 rounded-full" />
+            </span>
+            <span>→</span>
+            <span className="w-12 h-7 border border-vital-cyan rounded-sm flex items-center justify-center">
+              <span className="w-1 h-1 bg-vital-cyan rounded-full" />
+            </span>
+          </div>
+        </div>
+      </div>
+
       <div className="min-h-screen bg-transparent text-serum-white font-sans flex overflow-hidden transition-colors duration-500 relative">
         {/* Content layers */}
 
@@ -847,6 +895,15 @@ const App: React.FC = () => {
             profile={userProfile}
             onSave={handleProfileSave}
             onClose={() => setShowProfileEditor(false)}
+          />
+        )}
+
+        {/* Export Modal */}
+        {activeNote && (
+          <ExportModal
+            note={activeNote}
+            isOpen={isExportModalOpen}
+            onClose={() => setIsExportModalOpen(false)}
           />
         )}
 
@@ -1678,6 +1735,16 @@ const App: React.FC = () => {
                             )}
                           </button>
                         )}
+
+                        {/* Export Button */}
+                        <button
+                          onClick={() => setIsExportModalOpen(true)}
+                          className="px-4 py-2 bg-neural-purple/10 hover:bg-neural-purple/15 border border-neural-purple/20 rounded-xl text-neural-purple text-[10px] font-sans font-semibold uppercase tracking-[0.1em] transition-all flex items-center gap-2 hover:shadow-[0_0_20px_rgba(167,139,250,0.15)]"
+                          title="Export Study Guide"
+                        >
+                          <Package size={12} />
+                          <span className="hidden md:block">Export</span>
+                        </button>
                       </div>
                     </div>
 
@@ -2118,6 +2185,16 @@ const App: React.FC = () => {
                             )}
                           </button>
                         )}
+
+                        {/* Export Button */}
+                        <button
+                          onClick={() => setIsExportModalOpen(true)}
+                          className="px-4 py-2 bg-neural-purple/10 hover:bg-neural-purple/15 border border-neural-purple/20 rounded-xl text-neural-purple text-[10px] font-sans font-semibold uppercase tracking-[0.1em] transition-all flex items-center gap-2 hover:shadow-[0_0_20px_rgba(167,139,250,0.15)]"
+                          title="Export Study Guide"
+                        >
+                          <Package size={12} />
+                          <span className="hidden md:block">Export</span>
+                        </button>
                       </div>
                     </div>
 
