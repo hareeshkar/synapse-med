@@ -1,40 +1,58 @@
-import React, { useEffect, useRef, memo } from "react";
+import React, { useEffect, useRef, memo, useState } from "react";
 import * as THREE from "three";
 
 /**
- * BioBackground - The Living Substrate (v3.0 Enhanced)
+ * BioBackground - The Living Substrate (v4.0 Optimized)
  *
- * Features:
- * - Fluid Domain Warping (Simulates viscous liquid flow)
- * - Biological "Lung" Breathing Rhythm (Compound sine waves)
- * - Hydrodynamic Parallax (Liquid displacement feel)
- * - Optimized WebGL renderer with proper cleanup
- *
- * Visual: Deep ocean current, slow-moving ink, obsidian glass with life.
+ * Performance Optimizations:
+ * - Lazy initialization with visibility detection
+ * - Reduced pixel ratio on mobile/tablets
+ * - Frame rate throttling (30fps vs 60fps)
+ * - Pause animation when tab is hidden
+ * - Reduced shader complexity on low-power devices
+ * - GPU memory management with proper disposal
  */
+
+// Detect low-power device (mobile/tablet)
+const isLowPowerDevice = () => {
+  const ua = navigator.userAgent.toLowerCase();
+  return /mobile|android|iphone|ipad|tablet/i.test(ua) || window.innerWidth < 1200;
+};
 
 const BioBackground: React.FC = memo(() => {
   const mountRef = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(true);
+
+  // Track tab visibility
+  useEffect(() => {
+    const handleVisibility = () => setIsVisible(!document.hidden);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, []);
 
   useEffect(() => {
     if (!mountRef.current) return;
     const container = mountRef.current;
 
+    const lowPower = isLowPowerDevice();
+    
     // --- 1. SETUP ENGINE ---
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 
-    // Performance: Request high-performance GPU for smooth animation
+    // Performance: Adaptive GPU settings
     const renderer = new THREE.WebGLRenderer({
       alpha: true,
       antialias: false,
-      powerPreference: "high-performance",
+      powerPreference: lowPower ? "low-power" : "high-performance",
       depth: false,
       stencil: false,
+      precision: lowPower ? "mediump" : "highp",
     });
 
-    // Smart Pixel Ratio: Capping at 1.5 preserves sharpness without frying mobile GPUs
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    // Adaptive Pixel Ratio: Lower on mobile for performance
+    const maxPixelRatio = lowPower ? 1.0 : 1.5;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, maxPixelRatio));
     renderer.setSize(window.innerWidth, window.innerHeight);
     container.appendChild(renderer.domElement);
 
@@ -201,75 +219,73 @@ const BioBackground: React.FC = memo(() => {
     scene.add(mesh);
 
     // --- 4. FLUID INTERACTION LOGIC WITH OPTIMIZED PHYSICS ---
-    // Physics-based mouse tracking with adaptive smoothing to prevent jitter
+    // Physics-based mouse tracking with adaptive smoothing
     const targetMouse = new THREE.Vector2(0.5, 0.5);
     const currentMouse = new THREE.Vector2(0.5, 0.5);
     const velocity = new THREE.Vector2(0, 0);
     const lastMouse = new THREE.Vector2(0.5, 0.5);
-    const lastVelocity = new THREE.Vector2(0, 0);
 
+    // Throttled mouse move handler (reduces CPU overhead)
+    let mouseThrottleId: number | null = null;
     const onMouseMove = (e: MouseEvent) => {
-      targetMouse.x = e.clientX / window.innerWidth;
-      targetMouse.y = 1.0 - e.clientY / window.innerHeight; // Invert Y for shader coords
+      if (mouseThrottleId) return;
+      mouseThrottleId = requestAnimationFrame(() => {
+        targetMouse.x = e.clientX / window.innerWidth;
+        targetMouse.y = 1.0 - e.clientY / window.innerHeight;
+        mouseThrottleId = null;
+      });
     };
-    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mousemove", onMouseMove, { passive: true });
 
-    // --- 5. ANIMATION LOOP WITH JITTER-FREE PHYSICS ---
+    // --- 5. ANIMATION LOOP WITH FRAME THROTTLING ---
     const clock = new THREE.Clock();
     let requestId: number;
+    let lastFrameTime = 0;
+    const targetFPS = lowPower ? 24 : 30; // Lower FPS on mobile
+    const frameInterval = 1000 / targetFPS;
 
-    const animate = () => {
+    const animate = (currentTime: number) => {
       requestId = requestAnimationFrame(animate);
+
+      // Skip frames if tab hidden or throttling
+      if (!isVisible) return;
+      
+      const elapsed = currentTime - lastFrameTime;
+      if (elapsed < frameInterval) return;
+      lastFrameTime = currentTime - (elapsed % frameInterval);
+
       const delta = clock.getDelta();
 
       // Update time
       uniforms.u_time.value += delta;
 
-      // Physics-based mouse movement with stronger smoothing and clamping
-      // Calculate raw velocity (delta since last frame)
-      const rawVelocity = new THREE.Vector2().subVectors(
-        targetMouse,
-        lastMouse
-      );
+      // Simplified physics for performance
+      const rawVelocity = new THREE.Vector2().subVectors(targetMouse, lastMouse);
       lastMouse.copy(targetMouse);
 
-      // Clamp raw velocity to avoid teleport jumps from large mouse moves
+      // Clamp velocity
       const maxRaw = 0.25;
       if (rawVelocity.length() > maxRaw) rawVelocity.setLength(maxRaw);
 
-      // Stronger velocity smoothing (90% history, 10% new) for very stable motion
+      // Smooth velocity (90% history, 10% new)
       velocity.multiplyScalar(0.9).add(rawVelocity.multiplyScalar(0.1));
-      lastVelocity.copy(velocity);
 
-      // Apply spring physics with lighter stiffness and stronger damping
-      const stiffness = 0.06; // gentler spring
-      const damping = 0.93; // higher damping to kill oscillation
+      // Spring physics
+      const stiffness = 0.06;
+      const damping = 0.93;
+      const delta_pos = new THREE.Vector2().subVectors(targetMouse, currentMouse);
 
-      // Spring force towards target, but clamp the delta to avoid large jumps
-      const delta_pos = new THREE.Vector2().subVectors(
-        targetMouse,
-        currentMouse
-      );
-
-      // Deadzone: if very small movement, don't bother applying spring (prevents micro jitters)
       if (delta_pos.length() > 0.002) {
         const maxDelta = 0.25;
         if (delta_pos.length() > maxDelta) delta_pos.setLength(maxDelta);
-        const springForce = delta_pos.multiplyScalar(stiffness);
-        velocity.add(springForce);
+        velocity.add(delta_pos.multiplyScalar(stiffness));
       }
 
-      // Apply damping/friction
       velocity.multiplyScalar(damping);
-
-      // Cap velocity magnitude for very stable behavior
       const maxVelocity = 0.06;
       if (velocity.length() > maxVelocity) velocity.setLength(maxVelocity);
 
-      // Update position (small increments)
       currentMouse.add(velocity);
-
-      // Clamp to valid range to prevent shader artifacts
       currentMouse.x = Math.max(0, Math.min(1, currentMouse.x));
       currentMouse.y = Math.max(0, Math.min(1, currentMouse.y));
 
@@ -278,33 +294,40 @@ const BioBackground: React.FC = memo(() => {
       renderer.render(scene, camera);
     };
 
-    animate();
+    requestAnimationFrame(animate);
 
-    // --- 6. ROBUST RESIZE HANDLER ---
+    // --- 6. DEBOUNCED RESIZE HANDLER ---
+    let resizeTimeout: ReturnType<typeof setTimeout>;
     const handleResize = () => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      renderer.setSize(w, h);
-      uniforms.u_resolution.value.set(w, h);
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        renderer.setSize(w, h);
+        uniforms.u_resolution.value.set(w, h);
+      }, 100);
     };
-    window.addEventListener("resize", handleResize);
+    window.addEventListener("resize", handleResize, { passive: true });
 
     // --- 7. CLEANUP (Memory Management) ---
     return () => {
       cancelAnimationFrame(requestId);
+      if (mouseThrottleId) cancelAnimationFrame(mouseThrottleId);
+      clearTimeout(resizeTimeout);
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("resize", handleResize);
 
-      // Dispose Three.js Assets to prevent leaks
+      // Dispose Three.js Assets
       geometry.dispose();
       material.dispose();
       renderer.dispose();
+      renderer.forceContextLoss();
 
       if (container && renderer.domElement) {
         container.removeChild(renderer.domElement);
       }
     };
-  }, []);
+  }, [isVisible]);
 
   return (
     <>

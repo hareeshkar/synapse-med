@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo, useCallback, memo } from "react";
 import {
   X,
   Search,
@@ -34,131 +34,74 @@ interface Props {
   onNodeClick: (nodeId: string) => void;
 }
 
-const NodeInspector: React.FC<Props> = ({
+// Memoized color/icon lookup tables (outside component to avoid recreation)
+const COLOR_MAP: Record<number, { text: string; border: string; bg: string; hex: string }> = {
+  1: { text: "text-clinical-cyan", border: "border-clinical-cyan", bg: "bg-clinical-cyan", hex: "#06b6d4" },
+  2: { text: "text-clinical-rose", border: "border-clinical-rose", bg: "bg-clinical-rose", hex: "#f43f5e" },
+  3: { text: "text-clinical-purple", border: "border-clinical-purple", bg: "bg-clinical-purple", hex: "#8b5cf6" },
+  4: { text: "text-clinical-teal", border: "border-clinical-teal", bg: "bg-clinical-teal", hex: "#14b8a6" },
+  5: { text: "text-clinical-amber", border: "border-clinical-amber", bg: "bg-clinical-amber", hex: "#f59e0b" },
+  6: { text: "text-blue-400", border: "border-blue-400", bg: "bg-blue-400", hex: "#3b82f6" },
+  7: { text: "text-orange-400", border: "border-orange-400", bg: "bg-orange-400", hex: "#f97316" },
+};
+const DEFAULT_COLOR = { text: "text-gray-300", border: "border-gray-400", bg: "bg-gray-400", hex: "#9ca3af" };
+
+const ICON_MAP: Record<number, React.FC<any>> = {
+  1: Brain, 2: AlertTriangle, 3: Pill, 4: Heart, 5: Activity, 6: TestTube, 7: Stethoscope
+};
+
+const LABEL_MAP: Record<number, string> = {
+  1: "Core Concept", 2: "Pathology", 3: "Medication", 4: "Anatomy", 5: "Physiology", 6: "Diagnostic", 7: "Clinical Sign"
+};
+
+const getColor = (group: number) => COLOR_MAP[group] || DEFAULT_COLOR;
+const getIconComponent = (group: number) => ICON_MAP[group] || Circle;
+const getLabel = (group: number) => LABEL_MAP[group] || "Entity";
+
+// Memoized ReactMarkdown components (stable references)
+const markdownComponents = {
+  p: ({ children }: any) => <p className="mb-4 text-gray-100">{children}</p>,
+  strong: ({ children }: any) => <strong className="text-white font-semibold">{children}</strong>,
+  em: ({ children }: any) => <em className="text-clinical-cyan">{children}</em>,
+  ul: ({ children }: any) => <ul className="list-disc pl-5 space-y-2">{children}</ul>,
+  li: ({ children }: any) => <li className="text-gray-100">{children}</li>,
+};
+
+const NodeInspector: React.FC<Props> = memo(({
   node,
   graphData,
   onClose,
   onNodeClick,
 }) => {
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<
-    "details" | "network" | "resources"
-  >("details");
+  const [activeSection, setActiveSection] = useState<"details" | "network" | "resources">("details");
 
-  if (!node) return null;
-
-  const getColor = (group: number) => {
-    const colors: Record<
-      number,
-      { text: string; border: string; bg: string; hex: string }
-    > = {
-      1: {
-        text: "text-clinical-cyan",
-        border: "border-clinical-cyan",
-        bg: "bg-clinical-cyan",
-        hex: "#06b6d4",
-      },
-      2: {
-        text: "text-clinical-rose",
-        border: "border-clinical-rose",
-        bg: "bg-clinical-rose",
-        hex: "#f43f5e",
-      },
-      3: {
-        text: "text-clinical-purple",
-        border: "border-clinical-purple",
-        bg: "bg-clinical-purple",
-        hex: "#8b5cf6",
-      },
-      4: {
-        text: "text-clinical-teal",
-        border: "border-clinical-teal",
-        bg: "bg-clinical-teal",
-        hex: "#14b8a6",
-      },
-      5: {
-        text: "text-clinical-amber",
-        border: "border-clinical-amber",
-        bg: "bg-clinical-amber",
-        hex: "#f59e0b",
-      },
-      6: {
-        text: "text-blue-400",
-        border: "border-blue-400",
-        bg: "bg-blue-400",
-        hex: "#3b82f6",
-      },
-      7: {
-        text: "text-orange-400",
-        border: "border-orange-400",
-        bg: "bg-orange-400",
-        hex: "#f97316",
-      },
-    };
-    return (
-      colors[group] || {
-        text: "text-gray-300",
-        border: "border-gray-400",
-        bg: "bg-gray-400",
-        hex: "#9ca3af",
-      }
+  // Memoize link calculations
+  const { outgoingLinks, incomingLinks, connectionCount } = useMemo(() => {
+    if (!node) return { outgoingLinks: [], incomingLinks: [], connectionCount: 0 };
+    
+    const outgoing = graphData.links.filter(
+      (l) => l.source === node.id || (typeof l.source === "object" && (l.source as any).id === node.id)
     );
-  };
+    const incoming = graphData.links.filter(
+      (l) => l.target === node.id || (typeof l.target === "object" && (l.target as any).id === node.id)
+    );
+    return { outgoingLinks: outgoing, incomingLinks: incoming, connectionCount: outgoing.length + incoming.length };
+  }, [node?.id, graphData.links]);
 
-  const getIconComponent = (group: number) => {
-    switch (group) {
-      case 1:
-        return Brain;
-      case 2:
-        return AlertTriangle;
-      case 3:
-        return Pill;
-      case 4:
-        return Heart;
-      case 5:
-        return Activity;
-      case 6:
-        return TestTube;
-      case 7:
-        return Stethoscope;
-      default:
-        return Circle;
-    }
-  };
+  // Memoize color and icon lookups
+  const colors = useMemo(() => node ? getColor(node.group) : DEFAULT_COLOR, [node?.group]);
+  const IconComponent = useMemo(() => node ? getIconComponent(node.group) : Circle, [node?.group]);
+  const nodeLabel = useMemo(() => node ? getLabel(node.group) : "Entity", [node?.group]);
 
-  const getLabel = (group: number) => {
-    const labels: Record<number, string> = {
-      1: "Core Concept",
-      2: "Pathology",
-      3: "Medication",
-      4: "Anatomy",
-      5: "Physiology",
-      6: "Diagnostic",
-      7: "Clinical Sign",
-    };
-    return labels[group] || "Entity";
-  };
-
-  const outgoingLinks = graphData.links.filter(
-    (l) =>
-      l.source === node.id ||
-      (typeof l.source === "object" && (l.source as any).id === node.id)
-  );
-  const incomingLinks = graphData.links.filter(
-    (l) =>
-      l.target === node.id ||
-      (typeof l.target === "object" && (l.target as any).id === node.id)
-  );
-
-  const colors = getColor(node.group);
-  const IconComponent = getIconComponent(node.group);
-  const connectionCount = outgoingLinks.length + incomingLinks.length;
-
-  const handleCopy = (text: string, id: string) => {
+  // Stable callback for copy
+  const handleCopy = useCallback((text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
-  };
+  }, []);
+
+  if (!node) return null;
 
   return (
     <div className="fixed inset-y-0 right-0 w-[520px] z-30 animate-[slideInRight_0.35s_cubic-bezier(0.16,1,0.3,1)] pointer-events-none">
@@ -179,7 +122,7 @@ const NodeInspector: React.FC<Props> = ({
             >
               <IconComponent size={12} strokeWidth={2.5} />
               <span className="text-[9px] font-black tracking-widest uppercase">
-                {getLabel(node.group)}
+                {nodeLabel}
               </span>
             </div>
             <button
@@ -567,6 +510,8 @@ const NodeInspector: React.FC<Props> = ({
       </div>
     </div>
   );
-};
+});
+
+NodeInspector.displayName = 'NodeInspector';
 
 export default NodeInspector;

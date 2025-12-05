@@ -5,6 +5,8 @@ import React, {
   useCallback,
   useMemo,
   memo,
+  lazy,
+  Suspense,
 } from "react";
 import {
   Send,
@@ -60,7 +62,7 @@ interface Props {
   onClearSelection?: () => void;
 }
 
-// Mode descriptions for tooltips
+// Mode descriptions for tooltips - memoized outside component
 const MODE_INFO: Record<
   ChatMode,
   { title: string; description: string; example: string }
@@ -97,12 +99,12 @@ const MODE_INFO: Record<
   },
 };
 
-// User Avatar Component
+// User Avatar Component - Optimized with memo
 const UserAvatar: React.FC<{
   profilePicture?: string;
   name: string;
   size?: "sm" | "md";
-}> = ({ profilePicture, name, size = "sm" }) => {
+}> = memo(({ profilePicture, name, size = "sm" }) => {
   const sizeClass = size === "sm" ? "w-7 h-7" : "w-9 h-9";
   const iconSize = size === "sm" ? 13 : 16;
 
@@ -112,17 +114,16 @@ const UserAvatar: React.FC<{
         src={profilePicture}
         alt={name}
         className={`${sizeClass} rounded-lg object-cover border border-white/10`}
+        loading="lazy"
       />
     );
   }
 
   // Fallback: Generate initials with gradient background
-  const initials = name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+  const initials = useMemo(() => 
+    name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase(),
+    [name]
+  );
 
   return (
     <div
@@ -137,10 +138,12 @@ const UserAvatar: React.FC<{
       )}
     </div>
   );
-};
+});
+
+UserAvatar.displayName = "UserAvatar";
 
 // ═══════════════════════════════════════════════════════════
-// THINKING INDICATOR - ChatGPT-Style with Typewriter Effect
+// THINKING INDICATOR - Optimized with better cleanup
 // ═══════════════════════════════════════════════════════════
 
 const ThinkingIndicator: React.FC<{ thinkingText?: string }> = memo(
@@ -150,116 +153,94 @@ const ThinkingIndicator: React.FC<{ thinkingText?: string }> = memo(
     const [displayedText, setDisplayedText] = useState("");
     const [isTyping, setIsTyping] = useState(false);
     const thoughtContainerRef = useRef<HTMLDivElement>(null);
-    const typingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
-      null
-    );
+    const typingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const dotsIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     // Cleanup all intervals on unmount
     useEffect(() => {
       return () => {
-        if (typingIntervalRef.current) {
-          clearInterval(typingIntervalRef.current);
-          typingIntervalRef.current = null;
-        }
-        if (dotsIntervalRef.current) {
-          clearInterval(dotsIntervalRef.current);
-          dotsIntervalRef.current = null;
-        }
+        if (typingIntervalRef.current) clearInterval(typingIntervalRef.current);
+        if (dotsIntervalRef.current) clearInterval(dotsIntervalRef.current);
       };
     }, []);
 
-    // Animated dots for header - optimized with cleanup
+    // Animated dots - reduced frequency
     useEffect(() => {
       dotsIntervalRef.current = setInterval(() => {
         setDots((prev) => (prev.length >= 3 ? "" : prev + "."));
-      }, 400);
+      }, 500); // Increased from 400ms
       return () => {
-        if (dotsIntervalRef.current) {
-          clearInterval(dotsIntervalRef.current);
-          dotsIntervalRef.current = null;
-        }
+        if (dotsIntervalRef.current) clearInterval(dotsIntervalRef.current);
       };
     }, []);
 
-    // Typewriter effect for thinking text (optimized)
+    // Typewriter effect - optimized batch size
     useEffect(() => {
       if (!thinkingText || !thinkingText.trim()) return;
 
-      // Auto-expand when thinking text appears
       if (thinkingText.length > 10 && !isExpanded) {
         setIsExpanded(true);
       }
 
-      // Clear any existing typing animation
       if (typingIntervalRef.current) {
         clearInterval(typingIntervalRef.current);
-        typingIntervalRef.current = null;
       }
 
       setIsTyping(true);
       let charIndex = displayedText.length;
 
-      // If new content is longer, continue typing from where we left off
       if (thinkingText.startsWith(displayedText)) {
         charIndex = displayedText.length;
       } else {
-        // Reset if content changed completely
         charIndex = 0;
         setDisplayedText("");
       }
 
-      // Faster typing: 5 chars at 10ms
+      // Faster typing: 8 chars at 12ms (was 5 at 10ms)
       typingIntervalRef.current = setInterval(() => {
         if (charIndex < thinkingText.length) {
-          setDisplayedText(thinkingText.substring(0, charIndex + 5));
-          charIndex += 5;
+          setDisplayedText(thinkingText.substring(0, charIndex + 8));
+          charIndex += 8;
         } else {
           setDisplayedText(thinkingText);
           setIsTyping(false);
-          if (typingIntervalRef.current) {
-            clearInterval(typingIntervalRef.current);
-            typingIntervalRef.current = null;
-          }
+          if (typingIntervalRef.current) clearInterval(typingIntervalRef.current);
         }
-      }, 10);
+      }, 12);
 
       return () => {
-        if (typingIntervalRef.current) {
-          clearInterval(typingIntervalRef.current);
-          typingIntervalRef.current = null;
-        }
+        if (typingIntervalRef.current) clearInterval(typingIntervalRef.current);
       };
     }, [thinkingText]);
 
-    // Auto-scroll to bottom of thinking content (throttled with RAF)
+    // Auto-scroll with RAF
     useEffect(() => {
       if (thoughtContainerRef.current && isExpanded) {
         requestAnimationFrame(() => {
           if (thoughtContainerRef.current) {
-            thoughtContainerRef.current.scrollTop =
-              thoughtContainerRef.current.scrollHeight;
+            thoughtContainerRef.current.scrollTop = thoughtContainerRef.current.scrollHeight;
           }
         });
       }
     }, [displayedText, isExpanded]);
 
+    const handleToggle = useCallback(() => {
+      if (thinkingText) setIsExpanded((prev) => !prev);
+    }, [thinkingText]);
+
     return (
       <div className="flex items-start gap-3 group">
         <div className="w-9 h-9 rounded-xl bg-vital-cyan/10 border border-vital-cyan/20 flex items-center justify-center shrink-0 relative">
           <Brain size={16} className="text-vital-cyan animate-pulse" />
-          {/* Animated glow ring */}
           <div className="absolute inset-0 rounded-xl border-2 border-vital-cyan/20 animate-ping" />
         </div>
         <div className="flex-1 glass-slide border-2 border-vital-cyan/20 rounded-2xl rounded-tl-sm overflow-hidden shadow-[0_0_40px_rgba(42,212,212,0.1)] relative">
-          {/* Animated gradient border effect */}
           <div className="absolute inset-0 bg-gradient-to-r from-vital-cyan/5 via-neural-purple/5 to-vital-cyan/5 opacity-50 animate-pulse pointer-events-none" />
 
           <div className="relative">
-            {/* Header */}
             <div
               className="px-4 py-3 border-b border-vital-cyan/10 bg-vital-cyan/[0.03] flex items-center justify-between cursor-pointer hover:bg-vital-cyan/[0.05] transition-colors"
-              onClick={() => thinkingText && setIsExpanded(!isExpanded)}
+              onClick={handleToggle}
             >
               <div className="flex items-center gap-2.5">
                 <div className="flex gap-1">
@@ -279,19 +260,12 @@ const ThinkingIndicator: React.FC<{ thinkingText?: string }> = memo(
                 <button className="text-[10px] text-vital-cyan/60 hover:text-vital-cyan transition-colors flex items-center gap-1 font-sans">
                   {isExpanded ? "Hide" : "Show"}
                   <svg
-                    className={`w-3 h-3 transition-transform ${
-                      isExpanded ? "rotate-180" : ""
-                    }`}
+                    className={`w-3 h-3 transition-transform ${isExpanded ? "rotate-180" : ""}`}
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
               )}

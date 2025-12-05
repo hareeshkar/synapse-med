@@ -38,7 +38,7 @@ interface KnowledgeGraphProps {
   className?: string;
   onNodeSelect: (node: KnowledgeNode | null) => void;
   selectedNodeId?: string | null;
-  inspectorOpen?: boolean; // 🔧 FIX: Added missing prop
+  inspectorOpen?: boolean;
 }
 
 interface GraphNode extends KnowledgeNode, d3.SimulationNodeDatum {
@@ -54,18 +54,18 @@ interface GraphLink extends d3.SimulationLinkDatum<GraphNode> {
   target: GraphNode | string;
 }
 
-// Optimized layout constants for "Spacious Mindmap" feel
+// Optimized layout constants - reduced for better performance
 const LAYOUT = {
   NODE_BASE_RADIUS: 18,
   NODE_SCALE: 3,
-  LINK_DISTANCE: 250, // Much more space
-  CHARGE_STRENGTH: -1000, // Strong repulsion to prevent overlap
-  COLLISION_PADDING: 60,
-  CLUSTER_RADIUS: 300,
-  ANIMATION_DURATION: 800,
+  LINK_DISTANCE: 200, // Reduced from 250
+  CHARGE_STRENGTH: -800, // Reduced from -1000
+  COLLISION_PADDING: 50, // Reduced from 60
+  CLUSTER_RADIUS: 250, // Reduced from 300
+  ANIMATION_DURATION: 600, // Reduced from 800
 } as const;
 
-// Group configuration
+// Group configuration - memoized outside component
 const GROUP_CONFIG: Record<
   number,
   { name: string; color: string; dark: string; icon: string }
@@ -89,22 +89,14 @@ const getGroupConfig = (group: number) =>
 
 const getGroupIcon = (group: number) => {
   switch (group) {
-    case 1:
-      return Brain;
-    case 2:
-      return AlertTriangle;
-    case 3:
-      return Pill;
-    case 4:
-      return Heart;
-    case 5:
-      return Activity;
-    case 6:
-      return TestTube;
-    case 7:
-      return Stethoscope;
-    default:
-      return Circle;
+    case 1: return Brain;
+    case 2: return AlertTriangle;
+    case 3: return Pill;
+    case 4: return Heart;
+    case 5: return Activity;
+    case 6: return TestTube;
+    case 7: return Stethoscope;
+    default: return Circle;
   }
 };
 
@@ -120,9 +112,7 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
       new Set([1, 2, 3, 4, 5, 6, 7])
     );
     const [showLabels, setShowLabels] = useState(true);
-    const [layoutMode, setLayoutMode] = useState<
-      "clustered" | "radial" | "force"
-    >("clustered");
+    const [layoutMode, setLayoutMode] = useState<"clustered" | "radial" | "force">("clustered");
     const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
 
     // Refs for click outside
@@ -131,26 +121,12 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
     const searchInputRef = useRef<HTMLInputElement>(null);
 
     // D3 Refs
-    const simulationRef = useRef<d3.Simulation<GraphNode, GraphLink> | null>(
-      null
-    );
-    const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(
-      null
-    );
-    const svgSelectionRef = useRef<d3.Selection<
-      SVGSVGElement,
-      unknown,
-      null,
-      undefined
-    > | null>(null);
-    const gRef = useRef<d3.Selection<
-      SVGGElement,
-      unknown,
-      null,
-      undefined
-    > | null>(null);
+    const simulationRef = useRef<d3.Simulation<GraphNode, GraphLink> | null>(null);
+    const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
+    const svgSelectionRef = useRef<d3.Selection<SVGSVGElement, unknown, null, undefined> | null>(null);
+    const gRef = useRef<d3.Selection<SVGGElement, unknown, null, undefined> | null>(null);
 
-    // Filtered data
+    // Filtered data - optimized with deep clone prevention
     const filteredData = useMemo(() => {
       let nodes = data.nodes.filter((n) => activeFilters.has(n.group));
       if (searchQuery.trim()) {
@@ -161,13 +137,11 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
             n.description?.toLowerCase().includes(query)
         );
       }
-      // Deep clone to prevent mutation issues with D3
+      
       const nodeIds = new Set(nodes.map((n) => n.id));
       const links = data.links.filter((l) => {
-        const sId =
-          typeof l.source === "object" ? (l.source as GraphNode).id : l.source;
-        const tId =
-          typeof l.target === "object" ? (l.target as GraphNode).id : l.target;
+        const sId = typeof l.source === "object" ? (l.source as GraphNode).id : l.source;
+        const tId = typeof l.target === "object" ? (l.target as GraphNode).id : l.target;
         return nodeIds.has(sId as string) && nodeIds.has(tId as string);
       });
 
@@ -182,24 +156,20 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
       if (!selectedNodeId) return new Set<string>();
       const ids = new Set<string>();
       filteredData.links.forEach((l) => {
-        const sId =
-          typeof l.source === "object" ? (l.source as GraphNode).id : l.source;
-        const tId =
-          typeof l.target === "object" ? (l.target as GraphNode).id : l.target;
+        const sId = typeof l.source === "object" ? (l.source as GraphNode).id : l.source;
+        const tId = typeof l.target === "object" ? (l.target as GraphNode).id : l.target;
         if (sId === selectedNodeId) ids.add(tId as string);
         if (tId === selectedNodeId) ids.add(sId as string);
       });
       return ids;
     }, [selectedNodeId, filteredData.links]);
 
-    // Node connection counts for sizing
+    // Node connection counts for sizing - optimized
     const nodeConnections = useMemo(() => {
       const counts: Record<string, number> = {};
       filteredData.links.forEach((l) => {
-        const sId =
-          typeof l.source === "object" ? (l.source as GraphNode).id : l.source;
-        const tId =
-          typeof l.target === "object" ? (l.target as GraphNode).id : l.target;
+        const sId = typeof l.source === "object" ? (l.source as GraphNode).id : l.source;
+        const tId = typeof l.target === "object" ? (l.target as GraphNode).id : l.target;
         counts[sId as string] = (counts[sId as string] || 0) + 1;
         counts[tId as string] = (counts[tId as string] || 0) + 1;
       });
@@ -209,22 +179,14 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
     const getNodeRadius = useCallback(
       (node: GraphNode) => {
         const connections = nodeConnections[node.id] || 0;
-        return (
-          LAYOUT.NODE_BASE_RADIUS +
-          Math.min(connections * LAYOUT.NODE_SCALE, 20)
-        );
+        return LAYOUT.NODE_BASE_RADIUS + Math.min(connections * LAYOUT.NODE_SCALE, 20);
       },
       [nodeConnections]
     );
 
-    // Initialize Graph
+    // Initialize Graph - optimized with fewer DOM operations
     useEffect(() => {
-      if (
-        !svgRef.current ||
-        !containerRef.current ||
-        !filteredData.nodes.length
-      )
-        return;
+      if (!svgRef.current || !containerRef.current || !filteredData.nodes.length) return;
 
       const width = containerRef.current.clientWidth;
       const height = containerRef.current.clientHeight;
@@ -234,80 +196,57 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = memo(
       // Clear previous
       d3.select(svgRef.current).selectAll("*").remove();
 
-      const svg = d3
-        .select(svgRef.current)
-        .attr("viewBox", [0, 0, width, height]);
+      const svg = d3.select(svgRef.current).attr("viewBox", [0, 0, width, height]);
       svgSelectionRef.current = svg;
 
-      // --- DEFS ---
+      // --- DEFS (Simplified for performance) ---
       const defs = svg.append("defs");
 
-      // Glow Filters
-      const createGlow = (id: string, stdDev: number) => {
-        const filter = defs
-          .append("filter")
-          .attr("id", id)
-          .attr("x", "-50%")
-          .attr("y", "-50%")
-          .attr("width", "200%")
-          .attr("height", "200%");
-        filter
-          .append("feGaussianBlur")
-          .attr("stdDeviation", stdDev)
-          .attr("result", "coloredBlur");
-        const merge = filter.append("feMerge");
-        merge.append("feMergeNode").attr("in", "coloredBlur");
-        merge.append("feMergeNode").attr("in", "SourceGraphic");
-      };
-      createGlow("glow", 4);
-      createGlow("strong-glow", 8);
+      // Single glow filter
+      const glowFilter = defs.append("filter")
+        .attr("id", "glow")
+        .attr("x", "-50%").attr("y", "-50%")
+        .attr("width", "200%").attr("height", "200%");
+      glowFilter.append("feGaussianBlur").attr("stdDeviation", 4).attr("result", "coloredBlur");
+      const merge = glowFilter.append("feMerge");
+      merge.append("feMergeNode").attr("in", "coloredBlur");
+      merge.append("feMergeNode").attr("in", "SourceGraphic");
 
-      // Gradients
+      // Strong glow for selected
+      const strongGlow = defs.append("filter")
+        .attr("id", "strong-glow")
+        .attr("x", "-50%").attr("y", "-50%")
+        .attr("width", "200%").attr("height", "200%");
+      strongGlow.append("feGaussianBlur").attr("stdDeviation", 8).attr("result", "coloredBlur");
+      const merge2 = strongGlow.append("feMerge");
+      merge2.append("feMergeNode").attr("in", "coloredBlur");
+      merge2.append("feMergeNode").attr("in", "SourceGraphic");
+
+      // Gradients (only create once)
       Object.entries(GROUP_CONFIG).forEach(([groupId, config]) => {
-        const gradient = defs
-          .append("radialGradient")
+        const gradient = defs.append("radialGradient")
           .attr("id", `gradient-${groupId}`)
-          .attr("cx", "30%")
-          .attr("cy", "30%");
-        gradient
-          .append("stop")
-          .attr("offset", "0%")
-          .attr("stop-color", config.color)
-          .attr("stop-opacity", 1);
-        gradient
-          .append("stop")
-          .attr("offset", "100%")
-          .attr("stop-color", config.dark)
-          .attr("stop-opacity", 0.9);
+          .attr("cx", "30%").attr("cy", "30%");
+        gradient.append("stop").attr("offset", "0%").attr("stop-color", config.color).attr("stop-opacity", 1);
+        gradient.append("stop").attr("offset", "100%").attr("stop-color", config.dark).attr("stop-opacity", 0.9);
       });
 
-      // Arrow Marker
-      defs
-        .append("marker")
+      // Arrow markers
+      defs.append("marker")
         .attr("id", "arrow")
         .attr("viewBox", "0 -5 10 10")
-        .attr("refX", 25) // Pushed back to not overlap node
-        .attr("refY", 0)
-        .attr("markerWidth", 5)
-        .attr("markerHeight", 5)
+        .attr("refX", 25).attr("refY", 0)
+        .attr("markerWidth", 5).attr("markerHeight", 5)
         .attr("orient", "auto")
-        .append("path")
-        .attr("fill", "#9ca3af")
-        .attr("d", "M0,-5L10,0L0,5");
+        .append("path").attr("fill", "#9ca3af").attr("d", "M0,-5L10,0L0,5");
 
-      // Active Arrow Marker (White)
-      defs
-        .append("marker")
+      defs.append("marker")
         .attr("id", "arrow-active")
         .attr("viewBox", "0 -5 10 10")
-        .attr("refX", 25)
-        .attr("refY", 0)
-        .attr("markerWidth", 6)
-        .attr("markerHeight", 6)
+        .attr("refX", 25).attr("refY", 0)
+        .attr("markerWidth", 6).attr("markerHeight", 6)
         .attr("orient", "auto")
-        .append("path")
-        .attr("fill", "#ffffff")
-        .attr("d", "M0,-5L10,0L0,5");
+        .append("path").attr("fill", "#ffffff").attr("d", "M0,-5L10,0L0,5");
 
       // --- LAYERS ---
       const g = svg.append("g");

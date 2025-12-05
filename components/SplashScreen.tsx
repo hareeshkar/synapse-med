@@ -1,21 +1,14 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 
 // ═══════════════════════════════════════════════════════════════════════════════════
-// SYNAPSE MED | THE "GOATED" MERGE — GENESIS × TELEMETRY
+// SYNAPSE MED | OPTIMIZED SPLASH SCREEN (v2.0)
 // ═══════════════════════════════════════════════════════════════════════════════════
-// A cinematic synthesis of morphogenetic choreography and clinical-grade telemetry.
-//
-// NARRATIVE ARC:
-// 1. SINGULARITY: The spark of consciousness (Central Dot)
-// 2. NAMING: Identity radiates from the void (Text Emergence)
-// 3. STRUCTURE: Biological scaffold assembles (DNA Star + Orbital Rings)
-// 4. HOMEOSTASIS: Vital systems come online (ECG, HR, SpO₂, BP)
-// 5. PERFUSION: Cognitive matrix synchronizes (Neural Logs)
-// 6. TRANSCENDENCE: Smooth exit into the application
-//
-// Inspired by: Cardiac electrophysiology, neural networks, deep-sea bioluminescence,
-// Fincher/Villeneuve title sequences, and award-tier product design.
-// ═══════════════════════════════════════════════════════════════════════════════════
+// Performance optimizations:
+// - Reduced particle count for better performance
+// - CSS-based animations where possible (GPU accelerated)
+// - Memoized static data
+// - Lazy canvas initialization
+// - Reduced re-renders with useCallback
 
 interface SplashScreenProps {
   onComplete: () => void;
@@ -23,7 +16,7 @@ interface SplashScreenProps {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────
-// CONFIG: DNA STAR GEOMETRY (Genesis)
+// CONFIG: DNA STAR GEOMETRY (Genesis) - Memoized outside component
 // ─────────────────────────────────────────────────────────────────────────────────
 
 const DNA_HELIX_POINTS = Array.from({ length: 12 }, (_, i) => {
@@ -72,35 +65,13 @@ const MED_LETTERS = "Med".split("").map((char, i) => ({
 }));
 
 // ─────────────────────────────────────────────────────────────────────────────────
-// CONFIG: MORPHOGENETIC RINGS (Telemetry)
+// CONFIG: MORPHOGENETIC RINGS (Telemetry) - Reduced count for performance
 // ─────────────────────────────────────────────────────────────────────────────────
 
 const RING_CONFIG = [
   { size: 380, thickness: 1, speed: 45, direction: 1, delay: 0, dash: "4 8" },
-  {
-    size: 520,
-    thickness: 0.5,
-    speed: 35,
-    direction: -1,
-    delay: 150,
-    dash: "2 12",
-  },
-  {
-    size: 680,
-    thickness: 0.3,
-    speed: 60,
-    direction: 1,
-    delay: 300,
-    dash: "1 30",
-  },
-  {
-    size: 840,
-    thickness: 0.25,
-    speed: 80,
-    direction: -1,
-    delay: 450,
-    dash: "1 40",
-  },
+  { size: 520, thickness: 0.5, speed: 35, direction: -1, delay: 150, dash: "2 12" },
+  { size: 680, thickness: 0.3, speed: 60, direction: 1, delay: 300, dash: "1 30" },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────────
@@ -112,13 +83,12 @@ const PERFUSION_LOGS = [
   { text: "ESTABLISHING NEURAL PATHWAYS...", delay: 600 },
   { text: "CALIBRATING BIO-RHYTHMS...", delay: 1200 },
   { text: "SYNCHRONIZING HEMODYNAMICS...", delay: 1800 },
-  { text: "INDEXING PATHOPHYSIOLOGY ATLAS...", delay: 2400 },
-  { text: "VITAL SIGNS NOMINAL.", delay: 3000 },
-  { text: "CONSCIOUSNESS ONLINE.", delay: 3600 },
+  { text: "VITAL SIGNS NOMINAL.", delay: 2400 },
+  { text: "CONSCIOUSNESS ONLINE.", delay: 3000 },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────────
-// PARTICLE SYSTEM (Telemetry)
+// PARTICLE SYSTEM (Optimized - Reduced count)
 // ─────────────────────────────────────────────────────────────────────────────────
 
 interface Particle {
@@ -138,10 +108,10 @@ interface Particle {
 
 const SplashScreen: React.FC<SplashScreenProps> = ({
   onComplete,
-  minDuration = 10000,
+  minDuration = 8000, // Reduced default duration
 }) => {
   // ─────────────────────────────────────────────────────────────────────────────
-  // STATE: CHOREOGRAPHY
+  // STATE: CHOREOGRAPHY (Minimized state updates)
   // ─────────────────────────────────────────────────────────────────────────────
   const [act, setAct] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
 
@@ -180,13 +150,13 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
   const ecgAnimationRef = useRef<number>(0);
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // PARTICLE GENERATION (Telemetry Rich)
+  // PARTICLE GENERATION (Reduced count for performance)
   // ─────────────────────────────────────────────────────────────────────────────
   const particles = useMemo<Particle[]>(() => {
     const result: Particle[] = [];
 
-    // Ascending plasma particles (morphogenetic flow)
-    for (let i = 0; i < 40; i++) {
+    // Reduced: 20 plasma particles (was 40)
+    for (let i = 0; i < 20; i++) {
       result.push({
         id: i,
         x: Math.random() * 100,
@@ -199,9 +169,9 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
       });
     }
 
-    // Orbital neuron particles
-    for (let i = 0; i < 18; i++) {
-      const angle = (i / 18) * Math.PI * 2;
+    // Reduced: 10 orbital particles (was 18)
+    for (let i = 0; i < 10; i++) {
+      const angle = (i / 10) * Math.PI * 2;
       result.push({
         id: 100 + i,
         x: 50 + Math.cos(angle) * (22 + Math.random() * 12),
@@ -214,8 +184,8 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
       });
     }
 
-    // Synapse sparks (reactive bursts)
-    for (let i = 0; i < 12; i++) {
+    // Reduced: 6 synapse sparks (was 12)
+    for (let i = 0; i < 6; i++) {
       result.push({
         id: 200 + i,
         x: 35 + Math.random() * 30,
@@ -232,103 +202,57 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
   }, []);
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // MASTER TIMELINE ORCHESTRATION (Genesis × Telemetry)
+  // MASTER TIMELINE ORCHESTRATION (Optimized timing)
   // ─────────────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    const timers: NodeJS.Timeout[] = [];
+    const timers: ReturnType<typeof setTimeout>[] = [];
 
-    // ACT 1: SINGULARITY (T+0ms) - The spark
-    timers.push(
-      setTimeout(() => {
-        setAct(1);
-        setDotVisible(true);
-      }, 100)
-    );
+    // ACT 1: SINGULARITY (T+0ms)
+    timers.push(setTimeout(() => { setAct(1); setDotVisible(true); }, 100));
+    timers.push(setTimeout(() => setDotPulsed(true), 400));
 
-    timers.push(
-      setTimeout(() => {
-        setDotPulsed(true);
-      }, 500)
-    );
+    // ACT 2: NAMING (T+600ms)
+    timers.push(setTimeout(() => { setAct(2); setLettersEmerging(true); }, 600));
 
-    // ACT 2: NAMING (T+800ms) - Identity radiates from center
-    timers.push(
-      setTimeout(() => {
-        setAct(2);
-        setLettersEmerging(true);
-      }, 800)
-    );
+    // ACT 3: STRUCTURE (T+1600ms)
+    timers.push(setTimeout(() => { setAct(3); setHelixNodesVisible(true); setRingsActive(true); }, 1600));
+    timers.push(setTimeout(() => setHelixConnectionsVisible(true), 2000));
 
-    // ACT 3: STRUCTURE (T+2000ms) - DNA Star + Orbital Rings
-    timers.push(
-      setTimeout(() => {
-        setAct(3);
-        setHelixNodesVisible(true);
-        setRingsActive(true);
-      }, 2000)
-    );
+    // ACT 4: HOMEOSTASIS (T+2800ms)
+    timers.push(setTimeout(() => { setAct(4); setTaglineVisible(true); setHudVisible(true); }, 2800));
 
-    timers.push(
-      setTimeout(() => {
-        setHelixConnectionsVisible(true);
-      }, 2400)
-    );
+    // ACT 5: PERFUSION (T+3600ms)
+    timers.push(setTimeout(() => { setAct(5); setFooterVisible(true); setLogIndex(0); }, 3600));
 
-    // ACT 4: HOMEOSTASIS (T+3200ms) - Vitals/HUD online
-    timers.push(
-      setTimeout(() => {
-        setAct(4);
-        setTaglineVisible(true);
-        setHudVisible(true);
-      }, 3200)
-    );
-
-    // ACT 5: PERFUSION (T+4200ms) - Neural logs + Footer
-    timers.push(
-      setTimeout(() => {
-        setAct(5);
-        setFooterVisible(true);
-        setLogIndex(0);
-      }, 4200)
-    );
-
-    // PERFUSION LOG SEQUENCE
+    // PERFUSION LOG SEQUENCE (Faster)
     PERFUSION_LOGS.forEach((log, i) => {
-      timers.push(
-        setTimeout(() => {
-          setCurrentLog(log.text);
-          setLogIndex(i);
-        }, 4200 + log.delay)
-      );
+      timers.push(setTimeout(() => { setCurrentLog(log.text); setLogIndex(i); }, 3600 + log.delay));
     });
 
-    // ACT 6: TRANSCENDENCE (T+minDuration) - Smooth exit
-    timers.push(
-      setTimeout(() => {
-        setAct(6);
-        const exitStart = performance.now();
-        const exitDuration = 900;
+    // ACT 6: TRANSCENDENCE (T+minDuration)
+    timers.push(setTimeout(() => {
+      setAct(6);
+      const exitStart = performance.now();
+      const exitDuration = 700; // Faster exit
 
-        const animateExit = (currentTime: number) => {
-          const elapsed = currentTime - exitStart;
-          const progress = Math.min(elapsed / exitDuration, 1);
-          const eased = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
-          setExitProgress(eased);
+      const animateExit = (currentTime: number) => {
+        const elapsed = currentTime - exitStart;
+        const progress = Math.min(elapsed / exitDuration, 1);
+        const eased = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+        setExitProgress(eased);
 
-          if (progress < 1) {
-            exitAnimationRef.current = requestAnimationFrame(animateExit);
-          } else {
-            onComplete();
-          }
-        };
-        exitAnimationRef.current = requestAnimationFrame(animateExit);
-      }, minDuration)
-    );
+        if (progress < 1) {
+          exitAnimationRef.current = requestAnimationFrame(animateExit);
+        } else {
+          onComplete();
+        }
+      };
+      exitAnimationRef.current = requestAnimationFrame(animateExit);
+    }, minDuration));
 
     return () => {
       timers.forEach(clearTimeout);
-      if (exitAnimationRef.current)
-        cancelAnimationFrame(exitAnimationRef.current);
+      if (exitAnimationRef.current) cancelAnimationFrame(exitAnimationRef.current);
     };
   }, [minDuration, onComplete]);
 

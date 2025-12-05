@@ -561,6 +561,118 @@
           opacity: 0;
         }
       }
+
+      /* ═══════════════════════════════════════════════════════════
+         TABLET & iPAD RESPONSIVE OPTIMIZATIONS
+         ═══════════════════════════════════════════════════════════ */
+      
+      /* iPad Pro 12.9", 11", iPad Air, iPad Mini landscape/portrait */
+      @media screen and (min-width: 768px) and (max-width: 1366px) {
+        /* Increase touch targets for tablet interaction */
+        button, [role="button"], .clickable {
+          min-height: 44px;
+          min-width: 44px;
+        }
+        
+        /* Larger font for better tablet readability */
+        .markdown-content {
+          font-size: 1.05rem;
+          line-height: 1.85;
+        }
+        .markdown-content h1 { font-size: 2rem; }
+        .markdown-content h2 { font-size: 1.65rem; }
+        .markdown-content h3 { font-size: 1.35rem; }
+        
+        /* Wider code blocks for tablet screens */
+        .markdown-content pre {
+          padding: 1.4em 1.6em;
+          font-size: 0.92em;
+        }
+        
+        /* Better table display on tablets */
+        .markdown-content table {
+          font-size: 0.95em;
+        }
+        .markdown-content th,
+        .markdown-content td {
+          padding: 1.1em 1.4em;
+        }
+      }
+      
+      /* iPad landscape optimizations */
+      @media screen and (min-width: 1024px) and (max-width: 1366px) and (orientation: landscape) {
+        .markdown-content {
+          max-width: 85%;
+          margin-inline: auto;
+        }
+      }
+      
+      /* iPad portrait optimizations */
+      @media screen and (min-width: 768px) and (max-width: 1024px) and (orientation: portrait) {
+        .markdown-content {
+          padding-inline: 1.5rem;
+        }
+        .markdown-content pre {
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+      }
+      
+      /* Reduce motion for battery savings on tablets */
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+        .heart-pulse, .heart-wave {
+          animation: none !important;
+        }
+      }
+      
+      /* High DPI tablet screens */
+      @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+        .bio-grain {
+          opacity: 0.012; /* Subtle grain on retina */
+        }
+      }
+      
+      /* Touch device hover state handling */
+      @media (hover: none) and (pointer: coarse) {
+        .smart-link:hover {
+          color: #2ad4d4;
+          border-bottom-color: rgba(42, 212, 212, 0.3);
+          text-shadow: none;
+        }
+        .smart-link:hover::before {
+          opacity: 0;
+        }
+        .markdown-content tr:hover td {
+          background: transparent;
+        }
+      }
+      
+      /* Landscape phone to small tablet */
+      @media screen and (max-width: 767px) {
+        .markdown-content {
+          font-size: 0.95rem;
+          line-height: 1.75;
+        }
+        .markdown-content h1 { font-size: 1.6rem; }
+        .markdown-content h2 { font-size: 1.35rem; }
+        .markdown-content h3 { font-size: 1.15rem; }
+        .markdown-content pre {
+          font-size: 0.8em;
+          padding: 1em;
+          border-radius: 8px;
+        }
+        .markdown-content table {
+          font-size: 0.85em;
+          display: block;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+      }
     </style>
     <script type="importmap">
       {
