@@ -524,10 +524,12 @@ const App: React.FC = () => {
   // Frontend stages: "building-graph" → "writing-guide" → modal close
   const startDeepDiveStreaming = async () => {
     if (stagingFiles.length === 0) return;
-    if (!process.env.API_KEY) {
-      alert("Please provide an API_KEY in the environment.");
-      return;
-    }
+    // REMOVED: API_KEY environment check - users will provide their key via Onboarding/Settings
+    // This allows the app to work on GitHub Pages with BYOK architecture
+    // if (!process.env.API_KEY) {
+    //   alert("Please provide an API_KEY in the environment.");
+    //   return;
+    // }
 
     try {
       setIsThinking(true);
