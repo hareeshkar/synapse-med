@@ -1,0 +1,1 @@
+import{g as e}from"./vendor-react-RsqJS7wA.js";import{r as o}from"./vendor-export-UWB0VjdR.js";const r=e(o()),t=Object.freeze(Object.defineProperty({__proto__:null,default:r},Symbol.toStringTag,{value:"Module"}));export{t as j};
