@@ -228,11 +228,11 @@ const StyledName: React.FC<{ name: string; className?: string }> = ({
   if (isSpecialName(name)) {
     const firstName = name.split(" ")[0];
     return (
-      <span className={`relative inline-block ${className}`}>
+      <span className={`relative inline-block pr-3 ${className}`}>
         <span className="font-serif italic text-tissue-rose bg-gradient-to-r from-tissue-rose via-pink-400 to-tissue-rose bg-clip-text text-transparent animate-pulse drop-shadow-[0_0_8px_rgba(244,114,182,0.6)]">
           {firstName}
         </span>
-        <span className="absolute -top-1 -right-3 text-tissue-rose/60 text-[10px]">
+        <span className="absolute -top-1 right-0 text-tissue-rose/60 text-[10px]">
           ♡
         </span>
       </span>
@@ -298,8 +298,8 @@ const Onboarding: React.FC<Props> = ({
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 500 * 1024) {
-        alert("Image too large. Please use an image under 500KB.");
+      if (file.size > 5 * 1024 * 1024) {
+        alert("Image too large. Please use an image under 5MB.");
         return;
       }
       const reader = new FileReader();
@@ -519,7 +519,7 @@ const Onboarding: React.FC<Props> = ({
                   </div>
                 </div>
                 <p className="text-center text-[10px] text-gray-500">
-                  Click to upload (max 500KB)
+                  Click to upload (max 5MB)
                 </p>
 
                 {/* Name */}
