@@ -92,7 +92,7 @@ export class GeminiService {
       // Make a minimal API call to verify the key works
       const ai = new GoogleGenAI({ apiKey: keyToTest });
       const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-2.5-flash",
         contents: "Say 'OK' if you can read this.",
         config: {
           maxOutputTokens: 5,
