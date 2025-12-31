@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en" class="bg-[#030508]">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Synapse Med | Intelligence Perfusion</title>
+
+    <!-- FONTS: The Voice of Clinical Authority -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Cinzel: Roman Structure | Cormorant: Human History | Manrope: Scientific Clarity | JetBrains: Data -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600&family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons+Round"
+      rel="stylesheet"
+    />
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- THE "LABORATORY" PALETTE - Biological Dark Theme -->
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Manrope", "sans-serif"],
+              serif: ["Cormorant Garamond", "serif"],
+              mono: ["JetBrains Mono", "monospace"],
+            },
+            colors: {
+              // Core Biological Palette
+              "bio-void": "#020405",
+              "bio-deep": "#0a0c0f",
+              "serum-white": "#F2F7FA",
+              "vital-cyan": "#2AD4D4",
+              "tissue-rose": "#E05D5D",
+              "synapse-amber": "#F0B429",
+              "neural-purple": "#9F7AEA",
+
+              // Legacy compatibility
+              obsidian: "#020405",
+              charcoal: "#0a0c0f",
+              glass: "rgba(255, 255, 255, 0.03)",
+              "glass-border": "rgba(255, 255, 255, 0.06)",
+              "glass-surface": "rgba(255, 255, 255, 0.03)",
+
+              clinical: {
+                cyan: "#2AD4D4",
+                teal: "#20B2AA",
+                rose: "#E05D5D",
+                amber: "#F0B429",
+                slate: "#64748b",
+                purple: "#9F7AEA",
+                text: "#94A3B8",
+              },
+            },
+            letterSpacing: {
+              clinical: "0.04em",
+              editorial: "-0.02em",
+              wide: "0.04em",
+            },
+            animation: {
+              "pulse-slow": "pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+              "pulse-subtle": "pulseSubtle 3s ease-in-out infinite",
+              glow: "glow 2s ease-in-out infinite alternate",
+              shimmer: "shimmer 2s ease-in-out infinite",
+              float: "float 6s ease-in-out infinite",
+              breathe: "breathe 4s ease-in-out infinite",
+              fadeInUp: "fadeInUp 0.6s ease-out forwards",
+              scaleIn: "scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+              subtlePulse: "subtlePulse 3s ease-in-out infinite",
+              fluidGlow: "fluidGlow 4s ease-in-out infinite",
+            },
+            keyframes: {
+              glow: {
+                "0%": { boxShadow: "0 0 5px rgba(42, 212, 212, 0.2)" },
+                "100%": { boxShadow: "0 0 30px rgba(42, 212, 212, 0.5)" },
+              },
+              shimmer: {
+                "0%": { transform: "translateX(-100%)" },
+                "100%": { transform: "translateX(100%)" },
+              },
+              float: {
+                "0%, 100%": { transform: "translateY(0)" },
+                "50%": { transform: "translateY(-10px)" },
+              },
+              breathe: {
+                "0%, 100%": { opacity: "0.4" },
+                "50%": { opacity: "0.8" },
+              },
+              pulseSubtle: {
+                "0%, 100%": { opacity: "1" },
+                "50%": { opacity: "0.7" },
+              },
+              subtlePulse: {
+                "0%, 100%": { opacity: "1", transform: "scale(1)" },
+                "50%": { opacity: "0.85", transform: "scale(1.01)" },
+              },
+              /* Heart pulse + wave for origin cards */
+              heartPulse: {
+                "0%": { transform: "scale(1)", opacity: "1" },
+                "50%": { transform: "scale(1.08)", opacity: "0.95" },
+                "100%": { transform: "scale(1)", opacity: "1" },
+              },
+              heartWave: {
+                "0%": { transform: "scale(0.6)", opacity: "0.35" },
+                "50%": { transform: "scale(1.8)", opacity: "0.12" },
+                "100%": { transform: "scale(2.6)", opacity: "0" },
+              },
+              fadeInUp: {
+                "0%": { opacity: "0", transform: "translateY(20px)" },
+                "100%": { opacity: "1", transform: "translateY(0)" },
+              },
+              scaleIn: {
+                "0%": { opacity: "0", transform: "scale(0.95)" },
+                "100%": { opacity: "1", transform: "scale(1)" },
+              },
+              fluidGlow: {
+                "0%": { opacity: "0.4", transform: "translate(0, 0) scale(1)" },
+                "25%": {
+                  opacity: "0.7",
+                  transform: "translate(30px, -20px) scale(1.1)",
+                },
+                "50%": {
+                  opacity: "0.8",
+                  transform: "translate(-20px, 30px) scale(1.2)",
+                },
+                "75%": {
+                  opacity: "0.7",
+                  transform: "translate(-30px, -30px) scale(1.1)",
+                },
+                "100%": {
+                  opacity: "0.4",
+                  transform: "translate(0, 0) scale(1)",
+                },
+              },
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      /* ═══════════════════════════════════════════════════════════
+         BASE DYNAMICS - THE LIVING SUBSTRATE
+         ═══════════════════════════════════════════════════════════ */
+      body {
+        background-color: transparent;
+        color: #f2f7fa;
+        -webkit-font-smoothing: antialiased;
+        overflow-x: hidden;
+        transition: all 0.3s ease;
+      }
+
+      /* Base dark background applied to html for proper fallback */
+      html {
+        background-color: #020405;
+      }
+
+      /* 1. ATMOSPHERE - NOISE TEXTURE (Film Grain) */
+      .bio-grain {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 9999;
+        opacity: 0.025;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+      }
+
+      /* 2. FROSTED GLASS EFFECT (Medical Slide Aesthetic) */
+      .glass-slide {
+        background: rgba(10, 12, 15, 0.6);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+        box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.6);
+      }
+
+      .glass-panel {
+        background: rgba(10, 12, 15, 0.5);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      /* 3. INTERACTIVE CARD PHYSICS */
+      .interactive-card {
+        transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+          border-color 0.4s ease, background 0.4s ease, box-shadow 0.4s ease;
+      }
+      .interactive-card:hover {
+        transform: translateY(-4px) scale(1.005);
+        border-color: rgba(42, 212, 212, 0.25);
+        background: rgba(42, 212, 212, 0.02);
+        box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.5),
+          0 0 40px rgba(42, 212, 212, 0.08);
+      }
+
+      /* 4. CELL MEMBRANE UPLOAD ZONE */
+      .cell-membrane {
+        border: 1px dashed rgba(255, 255, 255, 0.12);
+        transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      .cell-membrane.drag-active,
+      .cell-membrane:hover {
+        border-color: #2ad4d4;
+        border-style: solid;
+        background: rgba(42, 212, 212, 0.04);
+        transform: scale(0.98);
+        box-shadow: 0 0 40px rgba(42, 212, 212, 0.1) inset;
+      }
+
+      /* 5. GRADIENT TEXT */
+      .gradient-text {
+        background-clip: text;
+        -webkit-background-clip: text;
+        color: transparent;
+        background-image: linear-gradient(135deg, #f2f7fa 40%, #64748b 100%);
+      }
+
+      /* ═══════════════════════════════════════════════════════════
+         DYSLEXIA MODE OVERRIDES
+         ═══════════════════════════════════════════════════════════ */
+      body.dyslexia-mode {
+        background-color: #fdf6e3 !important;
+        color: #1a1a1a !important;
+      }
+      body.dyslexia-mode .bg-obsidian,
+      body.dyslexia-mode .bg-charcoal,
+      body.dyslexia-mode .bg-bio-void,
+      body.dyslexia-mode .bg-bio-deep,
+      body.dyslexia-mode aside {
+        background-color: #eee8d5 !important;
+        color: #1a1a1a !important;
+        border-color: #d6d3c9 !important;
+      }
+      body.dyslexia-mode .text-white,
+      body.dyslexia-mode .text-serum-white {
+        color: #1a1a1a !important;
+      }
+      body.dyslexia-mode .text-gray-400,
+      body.dyslexia-mode .text-gray-300 {
+        color: #4a4a4a !important;
+      }
+      body.dyslexia-mode .markdown-content {
+        font-family: "Verdana", "Arial", sans-serif !important;
+        line-height: 2.2 !important;
+        letter-spacing: 0.05em !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════════
+         SCROLLBAR - Minimal & Elegant
+         ═══════════════════════════════════════════════════════════ */
+      ::-webkit-scrollbar {
+        width: 5px;
+        height: 5px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 10px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(42, 212, 212, 0.3);
+      }
+
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+
+      /* ═══════════════════════════════════════════════════════════
+         MARKDOWN CONTENT - Editorial Medical Journal (NEJM Dark)
+         Optimized for extended reading sessions
+         ═══════════════════════════════════════════════════════════ */
+      .markdown-content {
+        /* Balanced aesthetic + readable font: Source Sans 3 or Plus Jakarta Sans */
+        font-family: "Source Sans 3", "Plus Jakarta Sans", "DM Sans", Inter,
+          system-ui, sans-serif;
+        font-size: 1.125rem;
+        line-height: 1.8;
+        color: #f0f0f0; /* bright near-white for excellent readability */
+        font-weight: 500;
+        letter-spacing: 0.015em;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* Headers - Clean Modern Authority */
+      .markdown-content h1 {
+        font-family: "Plus Jakarta Sans", "DM Sans", Manrope, sans-serif;
+        font-size: 2.6em;
+        font-weight: 700;
+        color: #ffffff;
+        margin-bottom: 0.5em;
+        margin-top: 1.2em;
+        letter-spacing: -0.02em;
+        border-bottom: 2px solid rgba(42, 212, 212, 0.25);
+        padding-bottom: 0.4em;
+      }
+      .markdown-content h2 {
+        font-family: "Plus Jakarta Sans", "DM Sans", Manrope, sans-serif;
+        font-size: 1.75em;
+        font-weight: 600;
+        color: #f8fafc;
+        margin-bottom: 0.6em;
+        margin-top: 1.8em;
+        border-left: 4px solid #2ad4d4;
+        padding-left: 1em;
+        letter-spacing: -0.01em;
+      }
+      .markdown-content h3 {
+        font-family: "Plus Jakarta Sans", "DM Sans", Manrope, sans-serif;
+        font-size: 0.9em;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.85);
+        margin-bottom: 0.5em;
+        margin-top: 1.5em;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+      .markdown-content h4 {
+        font-family: "Plus Jakarta Sans", "DM Sans", Manrope, sans-serif;
+        font-size: 1.15em;
+        font-weight: 600;
+        color: #cbd5e1;
+        margin-bottom: 0.4em;
+        margin-top: 1.2em;
+      }
+
+      /* Body Text - Optimized for reading */
+      .markdown-content p {
+        margin-bottom: 1.5em;
+        color: #f0f0f0; /* bright near-white body text */
+        font-size: 1.05em;
+      }
+      .markdown-content ul {
+        list-style-type: none;
+        padding-left: 0;
+        margin-bottom: 1.5em;
+      }
+      .markdown-content ul li {
+        position: relative;
+        padding-left: 1.6em;
+        margin-bottom: 0.75em;
+        color: #e5e7eb; /* bright list items */
+        font-size: 1.05em;
+      }
+      .markdown-content ul li::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0.65em;
+        width: 6px;
+        height: 6px;
+        background: linear-gradient(135deg, #2ad4d4, #20b2aa);
+        border-radius: 50%;
+      }
+      .markdown-content ol {
+        list-style-type: decimal;
+        padding-left: 1.8em;
+        margin-bottom: 1.5em;
+        color: #e5e7eb;
+      }
+      .markdown-content li {
+        margin-bottom: 0.6em;
+      }
+
+      /* Emphasis - Clinical Authority */
+      .markdown-content strong {
+        color: #ffffff;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+      }
+      .markdown-content em {
+        color: #e2e8f0;
+        font-style: italic;
+      }
+
+      /* Blockquote - Clinical Callout */
+      .markdown-content blockquote {
+        border-left: 4px solid #f0b429;
+        padding: 1.2em 1.8em;
+        color: #e2e8f0;
+        font-style: italic;
+        background: linear-gradient(
+          to right,
+          rgba(240, 180, 41, 0.06),
+          transparent
+        );
+        border-radius: 0 8px 8px 0;
+        margin: 2em 0;
+        font-family: "Manrope", sans-serif;
+        font-size: 0.95em;
+        font-weight: 500;
+      }
+
+      /* Code - Monospace Medical Values */
+      .markdown-content code {
+        background: rgba(42, 212, 212, 0.06);
+        padding: 0.22em 0.46em;
+        border-radius: 4px;
+        border: 1px solid rgba(42, 212, 212, 0.12);
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.85em;
+        color: #2ad4d4;
+      }
+
+      /* Smart Links - Neural Connections */
+      .smart-link {
+        cursor: pointer;
+        color: #2ad4d4;
+        font-weight: 600;
+        text-decoration: none;
+        border-bottom: 2px solid rgba(42, 212, 212, 0.3);
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        padding-bottom: 2px;
+        position: relative;
+        display: inline-block;
+      }
+      .smart-link::before {
+        content: "";
+        position: absolute;
+        inset: -3px -6px;
+        background: rgba(42, 212, 212, 0.06);
+        border-radius: 4px;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        z-index: -1;
+      }
+      .smart-link:hover {
+        color: #5eead4;
+        border-bottom-color: #5eead4;
+        text-shadow: 0 0 20px rgba(42, 212, 212, 0.4);
+      }
+      .smart-link:hover::before {
+        opacity: 1;
+      }
+
+      /* Tables - Clinical Data Display */
+      .markdown-content table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        margin: 2.5em 0;
+        font-size: 0.9em;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 12px;
+        overflow: hidden;
+        font-family: "Manrope", sans-serif;
+        background: rgba(10, 12, 15, 0.4);
+      }
+      .markdown-content th {
+        background: linear-gradient(
+          to bottom,
+          rgba(42, 212, 212, 0.08),
+          rgba(42, 212, 212, 0.04)
+        );
+        font-weight: 600;
+        text-align: left;
+        padding: 1em 1.2em;
+        border-bottom: 1px solid rgba(42, 212, 212, 0.15);
+        color: #f2f7fa;
+        text-transform: uppercase;
+        font-size: 0.75em;
+        letter-spacing: 0.1em;
+      }
+      .markdown-content td {
+        padding: 1em 1.2em;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        color: #d1d5db;
+      }
+      .markdown-content tr:last-child td {
+        border-bottom: none;
+      }
+      .markdown-content tr:hover td {
+        background: rgba(42, 212, 212, 0.03);
+        transition: background 0.3s ease;
+      }
+
+      /* ═══════════════════════════════════════════════════════════
+         CUSTOM SCROLLBAR VARIANTS
+         ═══════════════════════════════════════════════════════════ */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(42, 212, 212, 0.15);
+        border-radius: 4px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(42, 212, 212, 0.3);
+      }
+      /* Heart pulse + expanding wave used in origin cards */
+      .heart-pulse {
+        animation: heartPulse 1.2s cubic-bezier(0.36, 0, 0.66, 1) infinite;
+        transform-origin: center;
+        color: #e05d5d;
+      }
+      .heart-wave {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 100%;
+        height: 100%;
+        border-radius: 9999px;
+        background: radial-gradient(
+          circle,
+          rgba(224, 93, 93, 0.4) 0%,
+          rgba(224, 93, 93, 0.15) 30%,
+          transparent 70%
+        );
+        pointer-events: none;
+        animation: heartWave 1.2s cubic-bezier(0.36, 0, 0.66, 1) infinite;
+        transform: translate(-50%, -50%) scale(0.5);
+        opacity: 0;
+      }
+      .heart-wave.delay {
+        animation-delay: 0.4s;
+      }
+      .heart-wave.delay-2 {
+        animation-delay: 0.8s;
+      }
+
+      @keyframes heartPulse {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        20% {
+          transform: scale(1.25);
+        }
+        40% {
+          transform: scale(1);
+        }
+        60% {
+          transform: scale(1.15);
+        }
+        80% {
+          transform: scale(1);
+        }
+      }
+      @keyframes heartWave {
+        0% {
+          transform: translate(-50%, -50%) scale(0.6);
+          opacity: 0.6;
+        }
+        100% {
+          transform: translate(-50%, -50%) scale(3.5);
+          opacity: 0;
+        }
+      }
+
+      /* ═══════════════════════════════════════════════════════════
+         TABLET & iPAD RESPONSIVE OPTIMIZATIONS
+         ═══════════════════════════════════════════════════════════ */
+      
+      /* iPad Pro 12.9", 11", iPad Air, iPad Mini landscape/portrait */
+      @media screen and (min-width: 768px) and (max-width: 1366px) {
+        /* Increase touch targets for tablet interaction */
+        button, [role="button"], .clickable {
+          min-height: 44px;
+          min-width: 44px;
+        }
+        
+        /* Larger font for better tablet readability */
+        .markdown-content {
+          font-size: 1.05rem;
+          line-height: 1.85;
+        }
+        .markdown-content h1 { font-size: 2rem; }
+        .markdown-content h2 { font-size: 1.65rem; }
+        .markdown-content h3 { font-size: 1.35rem; }
+        
+        /* Wider code blocks for tablet screens */
+        .markdown-content pre {
+          padding: 1.4em 1.6em;
+          font-size: 0.92em;
+        }
+        
+        /* Better table display on tablets */
+        .markdown-content table {
+          font-size: 0.95em;
+        }
+        .markdown-content th,
+        .markdown-content td {
+          padding: 1.1em 1.4em;
+        }
+      }
+      
+      /* iPad landscape optimizations */
+      @media screen and (min-width: 1024px) and (max-width: 1366px) and (orientation: landscape) {
+        .markdown-content {
+          max-width: 85%;
+          margin-inline: auto;
+        }
+      }
+      
+      /* iPad portrait optimizations */
+      @media screen and (min-width: 768px) and (max-width: 1024px) and (orientation: portrait) {
+        .markdown-content {
+          padding-inline: 1.5rem;
+        }
+        .markdown-content pre {
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+      }
+      
+      /* Reduce motion for battery savings on tablets */
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+        .heart-pulse, .heart-wave {
+          animation: none !important;
+        }
+      }
+      
+      /* High DPI tablet screens */
+      @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+        .bio-grain {
+          opacity: 0.012; /* Subtle grain on retina */
+        }
+      }
+      
+      /* Touch device hover state handling */
+      @media (hover: none) and (pointer: coarse) {
+        .smart-link:hover {
+          color: #2ad4d4;
+          border-bottom-color: rgba(42, 212, 212, 0.3);
+          text-shadow: none;
+        }
+        .smart-link:hover::before {
+          opacity: 0;
+        }
+        .markdown-content tr:hover td {
+          background: transparent;
+        }
+      }
+      
+      /* Landscape phone to small tablet */
+      @media screen and (max-width: 767px) {
+        .markdown-content {
+          font-size: 0.95rem;
+          line-height: 1.75;
+        }
+        .markdown-content h1 { font-size: 1.6rem; }
+        .markdown-content h2 { font-size: 1.35rem; }
+        .markdown-content h3 { font-size: 1.15rem; }
+        .markdown-content pre {
+          font-size: 0.8em;
+          padding: 1em;
+          border-radius: 8px;
+        }
+        .markdown-content table {
+          font-size: 0.85em;
+          display: block;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+      }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+          "react": "https://aistudiocdn.com/react@^19.2.0",
+          "d3": "https://aistudiocdn.com/d3@^7.9.0",
+          "react/": "https://aistudiocdn.com/react@^19.2.0/",
+          "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
+          "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+          "react-markdown": "https://esm.sh/react-markdown@9.0.1",
+          "remark-gfm": "https://aistudiocdn.com/remark-gfm@^4.0.1"
+        }
+      }
+    </script>
+    <link rel="stylesheet" href="/index.css" />
+
+    <!-- NATIVE PRELOADER: Shows instantly before React hydrates -->
+    <style>
+      /* Pre-React splash nucleus - disappears once React mounts */
+      #native-preloader {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        background: #030508;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: opacity 0.4s ease, visibility 0.4s ease;
+      }
+      #native-preloader.hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+      #native-preloader .nucleus {
+        width: 12px;
+        height: 12px;
+        background: #fff;
+        border-radius: 50%;
+        box-shadow: 0 0 15px rgba(42, 212, 212, 0.9),
+          0 0 40px rgba(42, 212, 212, 0.4);
+        animation: nucleus-pulse 1.4s ease-in-out infinite;
+      }
+      @keyframes nucleus-pulse {
+        0%,
+        100% {
+          transform: scale(1);
+          opacity: 0.8;
+        }
+        15% {
+          transform: scale(1.35);
+          opacity: 1;
+          box-shadow: 0 0 50px rgba(42, 212, 212, 0.85);
+        }
+        30% {
+          transform: scale(1);
+          opacity: 0.8;
+        }
+        45% {
+          transform: scale(1.15);
+          opacity: 0.9;
+        }
+        65% {
+          transform: scale(1);
+          opacity: 0.8;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Native preloader (visible before React) -->
+    <div id="native-preloader">
+      <div class="nucleus"></div>
+    </div>
+
+    <!-- Film grain overlay for organic texture -->
+    <div class="bio-grain"></div>
+    <!-- Background container for WebGL shader (populated by React Portal) -->
+    <div id="bio-background-root"></div>
+    <div id="root"></div>
+
+    <!-- Hide native preloader once React mounts -->
+    <script>
+      // Observe DOM for React mount, then hide native preloader
+      const hideNativePreloader = () => {
+        const preloader = document.getElementById("native-preloader");
+        if (preloader) preloader.classList.add("hidden");
+      };
+      // Hide after a short delay to allow React splash to take over
+      window.addEventListener("load", () =>
+        setTimeout(hideNativePreloader, 100)
+      );
+    </script>
+
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
